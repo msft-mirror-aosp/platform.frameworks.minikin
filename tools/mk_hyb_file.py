@@ -35,6 +35,10 @@ import getopt
 
 VERBOSE = False
 
+# U+00DF is LATIN SMALL LETTER SHARP S
+# U+1E9E is LATIN CAPITAL LETTER SHARP S
+SHARP_S_TO_DOUBLE = u'\u00dfSS'
+SHARP_S_TO_CAPITAL = u'\u00df\u1e9e'
 
 if sys.version_info[0] >= 3:
     def unichr(x):
@@ -283,8 +287,12 @@ def load_chr(fn):
         for i, l in enumerate(f):
             l = l.strip()
             if len(l) > 2:
-                # lowercase maps to multi-character uppercase sequence, ignore uppercase for now
-                l = l[:1]
+                if l == SHARP_S_TO_DOUBLE:
+                    # replace with lowercasing from capital letter sharp s
+                    l = SHARP_S_TO_CAPITAL
+                else:
+                    # lowercase maps to multi-character uppercase sequence, ignore uppercase for now
+                    l = l[:1]
             else:
                 assert len(l) == 2, 'expected 2 chars in chr'
             for c in l:
@@ -419,6 +427,9 @@ def verify_file_sorted(lines, fn):
     file_lines = [l.strip() for l in io.open(fn, encoding='UTF-8')]
     line_set = set(lines)
     file_set = set(file_lines)
+    if SHARP_S_TO_DOUBLE in file_set:
+        # ignore difference of double capital letter s and capital letter sharp s
+        file_set.symmetric_difference_update([SHARP_S_TO_DOUBLE, SHARP_S_TO_CAPITAL])
     if line_set == file_set:
         return True
     for line in line_set - file_set:
@@ -539,6 +550,12 @@ def verify_hyb_file(hyb_fn, pat_fn, chr_fn, hyp_fn):
     patterns = []
     exceptions = []
     traverse_trie(0, '', trie_data, ch_map, pattern_data, patterns, exceptions)
+
+    # EXCEPTION for Bulgarian (bg), which contains an ineffectual line of <0, U+044C, 0>
+    if u'\u044c' in patterns:
+        patterns.remove(u'\u044c')
+        patterns.append(u'0\u044c0')
+
     assert verify_file_sorted(patterns, pat_fn), 'pattern table not verified'
     assert verify_file_sorted(exceptions, hyp_fn), 'exception table not verified'
 
