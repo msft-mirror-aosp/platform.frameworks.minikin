@@ -179,7 +179,9 @@ struct CharProcessor {
         uint32_t newLocaleListId = run.getLocaleListId();
         if (localeListId != newLocaleListId) {
             Locale locale = getEffectiveLocale(newLocaleListId);
-            nextWordBreak = breaker.followingWithLocale(locale, run.getRange().getStart());
+            nextWordBreak = breaker.followingWithLocale(locale, run.lineBreakStyle(),
+                                                        run.lineBreakWordStyle(),
+                                                        run.getRange().getStart());
             hyphenator = HyphenatorMap::lookup(locale);
             localeListId = newLocaleListId;
         }

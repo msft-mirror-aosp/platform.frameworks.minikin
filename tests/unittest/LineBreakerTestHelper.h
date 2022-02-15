@@ -93,6 +93,12 @@ public:
 
     virtual float measureText(const U16StringPiece&) const { return 0; }
 
+    virtual LineBreakStyle lineBreakStyle() const override { return LineBreakStyle::None; }
+
+    virtual LineBreakWordStyle lineBreakWordStyle() const override {
+        return LineBreakWordStyle::None;
+    }
+
 private:
     MinikinPaint mPaint;
     uint32_t mLocaleListId;
