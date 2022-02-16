@@ -333,8 +333,7 @@ void GreedyLineBreaker::process() {
         uint32_t newLocaleListId = run->getLocaleListId();
         if (localeListId != newLocaleListId) {
             Locale locale = getEffectiveLocale(newLocaleListId);
-            nextWordBoundaryOffset = wordBreaker.followingWithLocale(
-                    locale, run->lineBreakStyle(), run->lineBreakWordStyle(), range.getStart());
+            nextWordBoundaryOffset = wordBreaker.followingWithLocale(locale, range.getStart());
             mHyphenator = HyphenatorMap::lookup(locale);
             localeListId = newLocaleListId;
         }
