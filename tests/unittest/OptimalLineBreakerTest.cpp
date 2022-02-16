@@ -65,21 +65,25 @@ public:
 
 protected:
     LineBreakResult doLineBreak(const U16StringPiece& textBuffer, BreakStrategy strategy,
+                                HyphenationFrequency frequency, float lineWidth) {
+        return doLineBreak(textBuffer, strategy, frequency, "en-US", lineWidth);
+    }
+
+    LineBreakResult doLineBreak(const U16StringPiece& textBuffer, BreakStrategy strategy,
                                 HyphenationFrequency frequency, const std::string& lang,
-                                float lineWidth, bool ignoreKerning) {
+                                float lineWidth) {
         MeasuredTextBuilder builder;
         auto family1 = buildFontFamily("Ascii.ttf");
         auto family2 = buildFontFamily("CustomExtent.ttf");
         std::vector<std::shared_ptr<FontFamily>> families = {family1, family2};
         auto fc = std::make_shared<FontCollection>(families);
         MinikinPaint paint(fc);
-        paint.size = 10.0f;  // Make 1em=10px
+        paint.size = 10.0f;  // Make 1em=1px
         paint.localeListId = LocaleListCache::getId(lang);
-        builder.addStyleRun(0, textBuffer.size(), std::move(paint), 0, 0, false);
-        bool computeHyphen = frequency != HyphenationFrequency::None;
+        builder.addStyleRun(0, textBuffer.size(), std::move(paint), false);
         std::unique_ptr<MeasuredText> measuredText =
-                builder.build(textBuffer, computeHyphen, false /* compute full layout */,
-                              ignoreKerning, nullptr /* no hint */);
+                builder.build(textBuffer, true /* compute hyphenation */,
+                              false /* compute full layout */, nullptr /* no hint */);
         return doLineBreak(textBuffer, *measuredText, strategy, frequency, lineWidth);
     }
 
@@ -89,33 +93,6 @@ protected:
         RectangleLineWidth rectangleLineWidth(lineWidth);
         return breakLineOptimal(textBuffer, measuredText, rectangleLineWidth, strategy, frequency,
                                 false /* justified */);
-    }
-
-    void expectBreak(const std::vector<LineBreakExpectation>& expect,
-                     const U16StringPiece& textBuffer, BreakStrategy strategy,
-                     HyphenationFrequency frequency, const std::string& lang, float lineWidth) {
-        {
-            char msg[256] = {};
-            snprintf(msg, 256, "width = %f, lang = %s, strategy = %u, frequency = %u, fullyHyphen",
-                     lineWidth, lang.c_str(), (uint32_t)strategy, (uint32_t)frequency);
-            SCOPED_TRACE(msg);
-            auto actual = doLineBreak(textBuffer, strategy, frequency, lang, lineWidth,
-                                      false /* ignoreKerning */);
-            EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
-                                                       << " vs " << std::endl
-                                                       << toString(textBuffer, actual);
-        }
-        {
-            char msg[256] = {};
-            snprintf(msg, 256, "width = %f, lang = %s, strategy = %u, frequency = %u, fullyHyphen",
-                     lineWidth, lang.c_str(), (uint32_t)strategy, (uint32_t)frequency);
-            SCOPED_TRACE(msg);
-            auto actual = doLineBreak(textBuffer, strategy, frequency, lang, lineWidth,
-                                      true /* ignoreKerning */);
-            EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
-                                                       << " vs " << std::endl
-                                                       << toString(textBuffer, actual);
-        }
     }
 
 private:
@@ -139,20 +116,44 @@ TEST_F(OptimalLineBreakerTest, testBreakWithoutHyphenation) {
                 {"This is an example text.", 240, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
         };
 
-        expectBreak(expect, textBuf, HIGH_QUALITY, NO_HYPHENATION, "en-US", LINE_WIDTH);
-        expectBreak(expect, textBuf, HIGH_QUALITY, NORMAL_HYPHENATION, "en-US", LINE_WIDTH);
-        expectBreak(expect, textBuf, BALANCED, NO_HYPHENATION, "en-US", LINE_WIDTH);
-        expectBreak(expect, textBuf, BALANCED, NORMAL_HYPHENATION, "en-US", LINE_WIDTH);
+        auto actual = doLineBreak(textBuf, HIGH_QUALITY, NO_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+        actual = doLineBreak(textBuf, HIGH_QUALITY, NORMAL_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+        actual = doLineBreak(textBuf, BALANCED, NO_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+        actual = doLineBreak(textBuf, BALANCED, NORMAL_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
     }
     {
         constexpr float LINE_WIDTH = 240;
         std::vector<LineBreakExpectation> expect = {
                 {"This is an example text.", 240, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
         };
-        expectBreak(expect, textBuf, HIGH_QUALITY, NO_HYPHENATION, "en-US", LINE_WIDTH);
-        expectBreak(expect, textBuf, HIGH_QUALITY, NORMAL_HYPHENATION, "en-US", LINE_WIDTH);
-        expectBreak(expect, textBuf, BALANCED, NO_HYPHENATION, "en-US", LINE_WIDTH);
-        expectBreak(expect, textBuf, BALANCED, NORMAL_HYPHENATION, "en-US", LINE_WIDTH);
+        auto actual = doLineBreak(textBuf, HIGH_QUALITY, NO_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+        actual = doLineBreak(textBuf, HIGH_QUALITY, NORMAL_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+        actual = doLineBreak(textBuf, BALANCED, NO_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+        actual = doLineBreak(textBuf, BALANCED, NORMAL_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
     }
     {
         constexpr float LINE_WIDTH = 230;
@@ -163,8 +164,14 @@ TEST_F(OptimalLineBreakerTest, testBreakWithoutHyphenation) {
         };
         // clang-format on
 
-        expectBreak(expect, textBuf, HIGH_QUALITY, NO_HYPHENATION, "en-US", LINE_WIDTH);
-        expectBreak(expect, textBuf, HIGH_QUALITY, NORMAL_HYPHENATION, "en-US", LINE_WIDTH);
+        auto actual = doLineBreak(textBuf, HIGH_QUALITY, NO_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+        actual = doLineBreak(textBuf, HIGH_QUALITY, NORMAL_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
 
         // clang-format off
         expect = {
@@ -172,17 +179,21 @@ TEST_F(OptimalLineBreakerTest, testBreakWithoutHyphenation) {
                 { "example text." , 130, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT },
         };
         // clang-format on
-        expectBreak(expect, textBuf, BALANCED, NO_HYPHENATION, "en-US", LINE_WIDTH);
-
+        actual = doLineBreak(textBuf, BALANCED, NO_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
         // clang-format off
         expect = {
                 { "This is an ex-" , 140, NO_START_HYPHEN, END_HYPHEN, ASCENT, DESCENT },
                 { "ample text."    , 110, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT },
         };
         // clang-format on
-        expectBreak(expect, textBuf, BALANCED, NORMAL_HYPHENATION, "en-US", LINE_WIDTH);
+        actual = doLineBreak(textBuf, BALANCED, NORMAL_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
     }
-    return;
     {
         constexpr float LINE_WIDTH = 170;
         // clang-format off
@@ -192,31 +203,40 @@ TEST_F(OptimalLineBreakerTest, testBreakWithoutHyphenation) {
         };
         // clang-format on
 
-        expectBreak(expect, textBuf, HIGH_QUALITY, NO_HYPHENATION, "en-US", LINE_WIDTH);
-
+        auto actual = doLineBreak(textBuf, HIGH_QUALITY, NO_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
         // clang-format off
         expect = {
                 { "This is an exam-" , 160, NO_START_HYPHEN, END_HYPHEN, ASCENT, DESCENT },
                 { "ple text."        ,  90, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT },
         };
         // clang-format on
-        expectBreak(expect, textBuf, HIGH_QUALITY, NORMAL_HYPHENATION, "en-US", LINE_WIDTH);
-
+        actual = doLineBreak(textBuf, HIGH_QUALITY, NORMAL_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
         // clang-format off
         expect = {
                 { "This is an "   , 100, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT },
                 { "example text." , 130, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT },
         };
         // clang-format on
-        expectBreak(expect, textBuf, BALANCED, NO_HYPHENATION, "en-US", LINE_WIDTH);
-
+        actual = doLineBreak(textBuf, BALANCED, NO_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
         // clang-format off
         expect = {
                 { "This is an ex-", 140, NO_START_HYPHEN, END_HYPHEN, ASCENT, DESCENT },
                 { "ample text."   , 110, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT },
         };
         // clang-format on
-        expectBreak(expect, textBuf, BALANCED, NORMAL_HYPHENATION, "en-US", LINE_WIDTH);
+        actual = doLineBreak(textBuf, BALANCED, NORMAL_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
     }
     {
         constexpr float LINE_WIDTH = 160;
@@ -226,31 +246,41 @@ TEST_F(OptimalLineBreakerTest, testBreakWithoutHyphenation) {
                 { "example text." , 130, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT },
         };
         // clang-format on
-        expectBreak(expect, textBuf, HIGH_QUALITY, NO_HYPHENATION, "en-US", LINE_WIDTH);
 
+        auto actual = doLineBreak(textBuf, HIGH_QUALITY, NO_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
         // clang-format off
         expect = {
                 { "This is an exam-" , 160, NO_START_HYPHEN, END_HYPHEN, ASCENT, DESCENT },
                 { "ple text."        ,  90, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT },
         };
         // clang-format on
-        expectBreak(expect, textBuf, HIGH_QUALITY, NORMAL_HYPHENATION, "en-US", LINE_WIDTH);
-
+        actual = doLineBreak(textBuf, HIGH_QUALITY, NORMAL_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
         // clang-format off
         expect = {
                 { "This is an "   , 100, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT },
                 { "example text." , 130, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT },
         };
         // clang-format on
-        expectBreak(expect, textBuf, BALANCED, NO_HYPHENATION, "en-US", LINE_WIDTH);
-
+        actual = doLineBreak(textBuf, BALANCED, NO_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
         // clang-format off
         expect = {
                 { "This is an ex-", 140, NO_START_HYPHEN, END_HYPHEN, ASCENT, DESCENT },
                 { "ample text."   , 110, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT },
         };
         // clang-format on
-        expectBreak(expect, textBuf, BALANCED, NORMAL_HYPHENATION, "en-US", LINE_WIDTH);
+        actual = doLineBreak(textBuf, BALANCED, NORMAL_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
     }
     {
         constexpr float LINE_WIDTH = 150;
@@ -260,31 +290,41 @@ TEST_F(OptimalLineBreakerTest, testBreakWithoutHyphenation) {
                 { "example text." , 130, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT },
         };
         // clang-format on
-        expectBreak(expect, textBuf, HIGH_QUALITY, NO_HYPHENATION, "en-US", LINE_WIDTH);
 
+        auto actual = doLineBreak(textBuf, HIGH_QUALITY, NO_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
         // clang-format off
         expect = {
                 { "This is an ex-", 140, NO_START_HYPHEN, END_HYPHEN, ASCENT, DESCENT },
                 { "ample text."   , 110, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT },
         };
         // clang-format on
-        expectBreak(expect, textBuf, HIGH_QUALITY, NORMAL_HYPHENATION, "en-US", LINE_WIDTH);
-
+        actual = doLineBreak(textBuf, HIGH_QUALITY, NORMAL_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
         // clang-format off
         expect = {
                 { "This is an "   , 100, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT },
                 { "example text." , 130, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT },
         };
         // clang-format on
-        expectBreak(expect, textBuf, BALANCED, NO_HYPHENATION, "en-US", LINE_WIDTH);
-
+        actual = doLineBreak(textBuf, BALANCED, NO_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
         // clang-format off
         expect = {
                 { "This is an ex-", 140, NO_START_HYPHEN, END_HYPHEN, ASCENT, DESCENT },
                 { "ample text."   , 110, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT },
         };
         // clang-format on
-        expectBreak(expect, textBuf, BALANCED, NORMAL_HYPHENATION, "en-US", LINE_WIDTH);
+        actual = doLineBreak(textBuf, BALANCED, NORMAL_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
     }
     {
         constexpr float LINE_WIDTH = 130;
@@ -295,10 +335,22 @@ TEST_F(OptimalLineBreakerTest, testBreakWithoutHyphenation) {
         };
         // clang-format on
 
-        expectBreak(expect, textBuf, HIGH_QUALITY, NO_HYPHENATION, "en-US", LINE_WIDTH);
-        expectBreak(expect, textBuf, HIGH_QUALITY, NORMAL_HYPHENATION, "en-US", LINE_WIDTH);
-        expectBreak(expect, textBuf, BALANCED, NO_HYPHENATION, "en-US", LINE_WIDTH);
-        expectBreak(expect, textBuf, BALANCED, NORMAL_HYPHENATION, "en-US", LINE_WIDTH);
+        auto actual = doLineBreak(textBuf, HIGH_QUALITY, NO_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+        actual = doLineBreak(textBuf, HIGH_QUALITY, NORMAL_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+        actual = doLineBreak(textBuf, BALANCED, NO_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+        actual = doLineBreak(textBuf, BALANCED, NORMAL_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
     }
     {
         constexpr float LINE_WIDTH = 120;
@@ -310,10 +362,18 @@ TEST_F(OptimalLineBreakerTest, testBreakWithoutHyphenation) {
         };
         // clang-format on
 
-        expectBreak(expect, textBuf, HIGH_QUALITY, NO_HYPHENATION, "en-US", LINE_WIDTH);
-        expectBreak(expect, textBuf, HIGH_QUALITY, NORMAL_HYPHENATION, "en-US", LINE_WIDTH);
-        expectBreak(expect, textBuf, BALANCED, NO_HYPHENATION, "en-US", LINE_WIDTH);
-
+        auto actual = doLineBreak(textBuf, HIGH_QUALITY, NO_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+        actual = doLineBreak(textBuf, HIGH_QUALITY, NORMAL_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+        actual = doLineBreak(textBuf, BALANCED, NO_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
         // clang-format off
         expect = {
                 { "This is " ,  70, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT },
@@ -321,8 +381,10 @@ TEST_F(OptimalLineBreakerTest, testBreakWithoutHyphenation) {
                 { "ple text.",  90, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT },
         };
         // clang-format on
-
-        expectBreak(expect, textBuf, BALANCED, NORMAL_HYPHENATION, "en-US", LINE_WIDTH);
+        actual = doLineBreak(textBuf, BALANCED, NORMAL_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
     }
     {
         constexpr float LINE_WIDTH = 90;
@@ -334,8 +396,11 @@ TEST_F(OptimalLineBreakerTest, testBreakWithoutHyphenation) {
                 { "text."   , 50, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT },
         };
         // clang-format on
-        expectBreak(expect, textBuf, HIGH_QUALITY, NO_HYPHENATION, "en-US", LINE_WIDTH);
 
+        auto actual = doLineBreak(textBuf, HIGH_QUALITY, NO_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
         // clang-format off
         expect = {
                 { "This is " , 70, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT },
@@ -343,8 +408,10 @@ TEST_F(OptimalLineBreakerTest, testBreakWithoutHyphenation) {
                 { "ple text.", 90, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT },
         };
         // clang-format on
-        expectBreak(expect, textBuf, HIGH_QUALITY, NORMAL_HYPHENATION, "en-US", LINE_WIDTH);
-
+        actual = doLineBreak(textBuf, HIGH_QUALITY, NORMAL_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
         // clang-format off
         expect = {
                 { "This "   , 40, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT },
@@ -353,8 +420,10 @@ TEST_F(OptimalLineBreakerTest, testBreakWithoutHyphenation) {
                 { "text."   , 50, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT },
         };
         // clang-format on
-        expectBreak(expect, textBuf, BALANCED, NO_HYPHENATION, "en-US", LINE_WIDTH);
-
+        actual = doLineBreak(textBuf, BALANCED, NO_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
         // clang-format off
         expect = {
                 { "This is " , 70, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT },
@@ -362,7 +431,10 @@ TEST_F(OptimalLineBreakerTest, testBreakWithoutHyphenation) {
                 { "ple text.", 90, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT },
         };
         // clang-format on
-        expectBreak(expect, textBuf, BALANCED, NORMAL_HYPHENATION, "en-US", LINE_WIDTH);
+        actual = doLineBreak(textBuf, BALANCED, NORMAL_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
     }
     {
         constexpr float LINE_WIDTH = 80;
@@ -375,9 +447,14 @@ TEST_F(OptimalLineBreakerTest, testBreakWithoutHyphenation) {
         };
         // clang-format on
 
-        expectBreak(expect, textBuf, HIGH_QUALITY, NO_HYPHENATION, "en-US", LINE_WIDTH);
-        expectBreak(expect, textBuf, BALANCED, NO_HYPHENATION, "en-US", LINE_WIDTH);
-
+        auto actual = doLineBreak(textBuf, HIGH_QUALITY, NO_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+        actual = doLineBreak(textBuf, BALANCED, NO_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
         // clang-format off
         expect = {
                 { "This is ", 70, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT },
@@ -386,8 +463,14 @@ TEST_F(OptimalLineBreakerTest, testBreakWithoutHyphenation) {
                 { "text."   , 50, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT },
         };
         // clang-format on
-        expectBreak(expect, textBuf, HIGH_QUALITY, NORMAL_HYPHENATION, "en-US", LINE_WIDTH);
-        expectBreak(expect, textBuf, BALANCED, NORMAL_HYPHENATION, "en-US", LINE_WIDTH);
+        actual = doLineBreak(textBuf, HIGH_QUALITY, NORMAL_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+        actual = doLineBreak(textBuf, BALANCED, NORMAL_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
     }
     {
         constexpr float LINE_WIDTH = 70;
@@ -400,8 +483,14 @@ TEST_F(OptimalLineBreakerTest, testBreakWithoutHyphenation) {
         };
         // clang-format on
 
-        expectBreak(expect, textBuf, HIGH_QUALITY, NO_HYPHENATION, "en-US", LINE_WIDTH);
-        expectBreak(expect, textBuf, BALANCED, NO_HYPHENATION, "en-US", LINE_WIDTH);
+        auto actual = doLineBreak(textBuf, HIGH_QUALITY, NO_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+        actual = doLineBreak(textBuf, BALANCED, NO_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
         // clang-format off
         expect = {
                 { "This is ", 70, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT },
@@ -410,8 +499,14 @@ TEST_F(OptimalLineBreakerTest, testBreakWithoutHyphenation) {
                 { "text."   , 50, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT },
         };
         // clang-format on
-        expectBreak(expect, textBuf, HIGH_QUALITY, NORMAL_HYPHENATION, "en-US", LINE_WIDTH);
-        expectBreak(expect, textBuf, BALANCED, NORMAL_HYPHENATION, "en-US", LINE_WIDTH);
+        actual = doLineBreak(textBuf, HIGH_QUALITY, NORMAL_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+        actual = doLineBreak(textBuf, BALANCED, NORMAL_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
     }
     {
         constexpr float LINE_WIDTH = 60;
@@ -426,8 +521,14 @@ TEST_F(OptimalLineBreakerTest, testBreakWithoutHyphenation) {
         };
         // clang-format on
 
-        expectBreak(expect, textBuf, HIGH_QUALITY, NO_HYPHENATION, "en-US", LINE_WIDTH);
-        expectBreak(expect, textBuf, BALANCED, NO_HYPHENATION, "en-US", LINE_WIDTH);
+        auto actual = doLineBreak(textBuf, HIGH_QUALITY, NO_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+        actual = doLineBreak(textBuf, BALANCED, NO_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
         // clang-format off
         expect = {
                 { "This " , 40, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT },
@@ -437,8 +538,14 @@ TEST_F(OptimalLineBreakerTest, testBreakWithoutHyphenation) {
                 { "text." , 50, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT },
         };
         // clang-format on
-        expectBreak(expect, textBuf, HIGH_QUALITY, NORMAL_HYPHENATION, "en-US", LINE_WIDTH);
-        expectBreak(expect, textBuf, BALANCED, NORMAL_HYPHENATION, "en-US", LINE_WIDTH);
+        actual = doLineBreak(textBuf, HIGH_QUALITY, NORMAL_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+        actual = doLineBreak(textBuf, BALANCED, NORMAL_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
     }
     {
         constexpr float LINE_WIDTH = 50;
@@ -453,8 +560,14 @@ TEST_F(OptimalLineBreakerTest, testBreakWithoutHyphenation) {
         };
         // clang-format on
 
-        expectBreak(expect, textBuf, HIGH_QUALITY, NO_HYPHENATION, "en-US", LINE_WIDTH);
-        expectBreak(expect, textBuf, BALANCED, NO_HYPHENATION, "en-US", LINE_WIDTH);
+        auto actual = doLineBreak(textBuf, HIGH_QUALITY, NO_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+        actual = doLineBreak(textBuf, BALANCED, NO_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
         // clang-format off
         expect = {
                 { "This " , 40, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT },
@@ -464,8 +577,14 @@ TEST_F(OptimalLineBreakerTest, testBreakWithoutHyphenation) {
                 { "text." , 50, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT },
         };
         // clang-format on
-        expectBreak(expect, textBuf, HIGH_QUALITY, NORMAL_HYPHENATION, "en-US", LINE_WIDTH);
-        expectBreak(expect, textBuf, BALANCED, NORMAL_HYPHENATION, "en-US", LINE_WIDTH);
+        actual = doLineBreak(textBuf, HIGH_QUALITY, NORMAL_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+        actual = doLineBreak(textBuf, BALANCED, NORMAL_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
     }
     {
         constexpr float LINE_WIDTH = 40;
@@ -481,8 +600,11 @@ TEST_F(OptimalLineBreakerTest, testBreakWithoutHyphenation) {
                 { "."     , 10, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT },
         };
         // clang-format on
-        expectBreak(expect, textBuf, HIGH_QUALITY, NO_HYPHENATION, "en-US", LINE_WIDTH);
 
+        auto actual = doLineBreak(textBuf, HIGH_QUALITY, NO_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
         // clang-format off
         expect = {
                 { "This " , 40, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT },
@@ -496,8 +618,10 @@ TEST_F(OptimalLineBreakerTest, testBreakWithoutHyphenation) {
                 { "ext."  , 40, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT },
         };
         // clang-format on
-        expectBreak(expect, textBuf, BALANCED, NO_HYPHENATION, "en-US", LINE_WIDTH);
-
+        actual = doLineBreak(textBuf, BALANCED, NO_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
         // clang-format off
         expect = {
                 { "This ", 40, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT },
@@ -510,7 +634,10 @@ TEST_F(OptimalLineBreakerTest, testBreakWithoutHyphenation) {
                 { "."    , 10, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT },
         };
         // clang-format on
-        expectBreak(expect, textBuf, HIGH_QUALITY, NORMAL_HYPHENATION, "en-US", LINE_WIDTH);
+        actual = doLineBreak(textBuf, HIGH_QUALITY, NORMAL_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
         // clang-format off
         expect = {
                 { "This ", 40, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT },
@@ -524,7 +651,10 @@ TEST_F(OptimalLineBreakerTest, testBreakWithoutHyphenation) {
                 { "xt."  , 30, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT },
         };
         // clang-format on
-        expectBreak(expect, textBuf, BALANCED, NORMAL_HYPHENATION, "en-US", LINE_WIDTH);
+        actual = doLineBreak(textBuf, BALANCED, NORMAL_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
     }
     {
         constexpr float LINE_WIDTH = 30;
@@ -543,8 +673,11 @@ TEST_F(OptimalLineBreakerTest, testBreakWithoutHyphenation) {
                 { "t."  , 20, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT },
         };
         // clang-format on
-        expectBreak(expect, textBuf, HIGH_QUALITY, NO_HYPHENATION, "en-US", LINE_WIDTH);
 
+        auto actual = doLineBreak(textBuf, HIGH_QUALITY, NO_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
         // clang-format off
         expect = {
                 // TODO: Is this desperate break working correctly?
@@ -561,8 +694,10 @@ TEST_F(OptimalLineBreakerTest, testBreakWithoutHyphenation) {
                 { "xt." , 30, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT },
         };
         // clang-format on
-        expectBreak(expect, textBuf, BALANCED, NO_HYPHENATION, "en-US", LINE_WIDTH);
-
+        actual = doLineBreak(textBuf, BALANCED, NO_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
         // clang-format off
         expect = {
                 // TODO: Is this desperate break working correctly?
@@ -577,8 +712,10 @@ TEST_F(OptimalLineBreakerTest, testBreakWithoutHyphenation) {
                 { "t."  , 20, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT },
         };
         // clang-format on
-        expectBreak(expect, textBuf, HIGH_QUALITY, NORMAL_HYPHENATION, "en-US", LINE_WIDTH);
-
+        actual = doLineBreak(textBuf, HIGH_QUALITY, NORMAL_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
         // clang-format off
         expect = {
                 // TODO: Is this desperate break working correctly?
@@ -594,7 +731,10 @@ TEST_F(OptimalLineBreakerTest, testBreakWithoutHyphenation) {
                 {"xt." , 30, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
         };
         // clang-format on
-        expectBreak(expect, textBuf, BALANCED, NORMAL_HYPHENATION, "en-US", LINE_WIDTH);
+        actual = doLineBreak(textBuf, BALANCED, NORMAL_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
     }
     {
         constexpr float LINE_WIDTH = 20;
@@ -614,9 +754,15 @@ TEST_F(OptimalLineBreakerTest, testBreakWithoutHyphenation) {
                 { "."  , 10, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT },
         };
         // clang-format on
-        expectBreak(expect, textBuf, HIGH_QUALITY, NO_HYPHENATION, "en-US", LINE_WIDTH);
-        expectBreak(expect, textBuf, HIGH_QUALITY, NORMAL_HYPHENATION, "en-US", LINE_WIDTH);
 
+        auto actual = doLineBreak(textBuf, HIGH_QUALITY, NO_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+        actual = doLineBreak(textBuf, HIGH_QUALITY, NORMAL_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
         // clang-format off
         expect = {
                 { "Th" , 20, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT },
@@ -634,8 +780,14 @@ TEST_F(OptimalLineBreakerTest, testBreakWithoutHyphenation) {
                 { "t." , 20, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT },
         };
         // clang-format on
-        expectBreak(expect, textBuf, BALANCED, NO_HYPHENATION, "en-US", LINE_WIDTH);
-        expectBreak(expect, textBuf, BALANCED, NORMAL_HYPHENATION, "en-US", LINE_WIDTH);
+        actual = doLineBreak(textBuf, BALANCED, NO_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+        actual = doLineBreak(textBuf, BALANCED, NORMAL_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
     }
     {
         constexpr float LINE_WIDTH = 10;
@@ -664,10 +816,22 @@ TEST_F(OptimalLineBreakerTest, testBreakWithoutHyphenation) {
         };
         // clang-format on
 
-        expectBreak(expect, textBuf, HIGH_QUALITY, NO_HYPHENATION, "en-US", LINE_WIDTH);
-        expectBreak(expect, textBuf, BALANCED, NO_HYPHENATION, "en-US", LINE_WIDTH);
-        expectBreak(expect, textBuf, HIGH_QUALITY, NORMAL_HYPHENATION, "en-US", LINE_WIDTH);
-        expectBreak(expect, textBuf, BALANCED, NORMAL_HYPHENATION, "en-US", LINE_WIDTH);
+        auto actual = doLineBreak(textBuf, HIGH_QUALITY, NO_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+        actual = doLineBreak(textBuf, BALANCED, NO_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+        actual = doLineBreak(textBuf, HIGH_QUALITY, NORMAL_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+        actual = doLineBreak(textBuf, BALANCED, NORMAL_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
     }
 }
 
@@ -688,7 +852,11 @@ TEST_F(OptimalLineBreakerTest, testHyphenationStartLineChange) {
                 {"czerwono-niebieska", 180, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
         };
 
-        expectBreak(expect, textBuf, HIGH_QUALITY, NORMAL_HYPHENATION, "pl", LINE_WIDTH);
+        const auto actual =
+                doLineBreak(textBuf, HIGH_QUALITY, NORMAL_HYPHENATION, "pl", LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
     }
     {
         constexpr float LINE_WIDTH = 180;
@@ -696,7 +864,11 @@ TEST_F(OptimalLineBreakerTest, testHyphenationStartLineChange) {
                 {"czerwono-niebieska", 180, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
         };
 
-        expectBreak(expect, textBuf, HIGH_QUALITY, NORMAL_HYPHENATION, "pl", LINE_WIDTH);
+        const auto actual =
+                doLineBreak(textBuf, HIGH_QUALITY, NORMAL_HYPHENATION, "pl", LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
     }
     {
         constexpr float LINE_WIDTH = 130;
@@ -707,7 +879,11 @@ TEST_F(OptimalLineBreakerTest, testHyphenationStartLineChange) {
         };
         // clang-format on
 
-        expectBreak(expect, textBuf, HIGH_QUALITY, NORMAL_HYPHENATION, "pl", LINE_WIDTH);
+        const auto actual =
+                doLineBreak(textBuf, HIGH_QUALITY, NORMAL_HYPHENATION, "pl", LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
     }
 }
 
@@ -722,14 +898,20 @@ TEST_F(OptimalLineBreakerTest, testZeroWidthLine) {
     {
         const auto textBuf = utf8ToUtf16("");
         std::vector<LineBreakExpectation> expect = {};
-        expectBreak(expect, textBuf, HIGH_QUALITY, NORMAL_HYPHENATION, "en-US", LINE_WIDTH);
+        const auto actual = doLineBreak(textBuf, HIGH_QUALITY, NORMAL_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
     }
     {
         const auto textBuf = utf8ToUtf16("A");
         std::vector<LineBreakExpectation> expect = {
                 {"A", 10, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
         };
-        expectBreak(expect, textBuf, HIGH_QUALITY, NORMAL_HYPHENATION, "en-US", LINE_WIDTH);
+        const auto actual = doLineBreak(textBuf, HIGH_QUALITY, NORMAL_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
     }
     {
         const auto textBuf = utf8ToUtf16("AB");
@@ -737,7 +919,10 @@ TEST_F(OptimalLineBreakerTest, testZeroWidthLine) {
                 {"A", 10, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
                 {"B", 10, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
         };
-        expectBreak(expect, textBuf, HIGH_QUALITY, NORMAL_HYPHENATION, "en-US", LINE_WIDTH);
+        const auto actual = doLineBreak(textBuf, HIGH_QUALITY, NORMAL_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
     }
 }
 
@@ -757,9 +942,9 @@ TEST_F(OptimalLineBreakerTest, testZeroWidthCharacter) {
         MeasuredTextBuilder builder;
         builder.addCustomRun<ConstantRun>(Range(0, textBuf.size()), "en-US", CHAR_WIDTH, ASCENT,
                                           DESCENT);
-        std::unique_ptr<MeasuredText> measuredText = builder.build(
-                textBuf, true /* compute hyphenation */, false /* compute full layout */,
-                false /* ignore kerning */, nullptr /* no hint */);
+        std::unique_ptr<MeasuredText> measuredText =
+                builder.build(textBuf, true /* compute hyphenation */,
+                              false /* compute full layout */, nullptr /* no hint */);
 
         const auto actual =
                 doLineBreak(textBuf, *measuredText, HIGH_QUALITY, NORMAL_HYPHENATION, LINE_WIDTH);
@@ -776,9 +961,9 @@ TEST_F(OptimalLineBreakerTest, testZeroWidthCharacter) {
         MeasuredTextBuilder builder;
         builder.addCustomRun<ConstantRun>(Range(0, textBuf.size()), "en-US", CHAR_WIDTH, ASCENT,
                                           DESCENT);
-        std::unique_ptr<MeasuredText> measuredText = builder.build(
-                textBuf, true /* compute hyphenation */, false /* compute full layout */,
-                false /* ignore kerning */, nullptr /* no hint */);
+        std::unique_ptr<MeasuredText> measuredText =
+                builder.build(textBuf, true /* compute hyphenation */,
+                              false /* compute full layout */, nullptr /* no hint */);
 
         const auto actual =
                 doLineBreak(textBuf, *measuredText, HIGH_QUALITY, NORMAL_HYPHENATION, LINE_WIDTH);
@@ -807,9 +992,9 @@ TEST_F(OptimalLineBreakerTest, testLocaleSwitchTest) {
         builder.addCustomRun<ConstantRun>(Range(0, 18), "en-US", CHAR_WIDTH, ASCENT, DESCENT);
         builder.addCustomRun<ConstantRun>(Range(18, textBuf.size()), "en-US", CHAR_WIDTH, ASCENT,
                                           DESCENT);
-        std::unique_ptr<MeasuredText> measuredText = builder.build(
-                textBuf, true /* compute hyphenation */, false /* compute full layout */,
-                false /* ignore kerning */, nullptr /* no hint */);
+        std::unique_ptr<MeasuredText> measuredText =
+                builder.build(textBuf, true /* compute hyphenation */,
+                              false /* compute full layout */, nullptr /* no hint */);
 
         const auto actual =
                 doLineBreak(textBuf, *measuredText, HIGH_QUALITY, NORMAL_HYPHENATION, LINE_WIDTH);
@@ -826,9 +1011,9 @@ TEST_F(OptimalLineBreakerTest, testLocaleSwitchTest) {
         builder.addCustomRun<ConstantRun>(Range(0, 18), "en-US", CHAR_WIDTH, ASCENT, DESCENT);
         builder.addCustomRun<ConstantRun>(Range(18, textBuf.size()), "fr-FR", CHAR_WIDTH, ASCENT,
                                           DESCENT);
-        std::unique_ptr<MeasuredText> measuredText = builder.build(
-                textBuf, true /* compute hyphenation */, false /* compute full layout */,
-                false /* ignore kerning */, nullptr /* no hint */);
+        std::unique_ptr<MeasuredText> measuredText =
+                builder.build(textBuf, true /* compute hyphenation */,
+                              false /* compute full layout */, nullptr /* no hint */);
         const auto actual =
                 doLineBreak(textBuf, *measuredText, HIGH_QUALITY, NORMAL_HYPHENATION, LINE_WIDTH);
         EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
@@ -855,17 +1040,28 @@ TEST_F(OptimalLineBreakerTest, testEmailOrUrl) {
                 {".b",                        20, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
         };
         // clang-format on
-        expectBreak(expect, textBuf, HIGH_QUALITY, NO_HYPHENATION, "en-US", LINE_WIDTH);
-        expectBreak(expect, textBuf, HIGH_QUALITY, NORMAL_HYPHENATION, "en-US", LINE_WIDTH);
-
+        auto actual = doLineBreak(textBuf, HIGH_QUALITY, NO_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+        actual = doLineBreak(textBuf, HIGH_QUALITY, NORMAL_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
         // clang-format off
         expect = {
                 {"This is an url: ", 150, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
                 {"http://a.b",       100, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
         };
         // clang-format on
-        expectBreak(expect, textBuf, BALANCED, NO_HYPHENATION, "en-US", LINE_WIDTH);
-        expectBreak(expect, textBuf, BALANCED, NORMAL_HYPHENATION, "en-US", LINE_WIDTH);
+        actual = doLineBreak(textBuf, BALANCED, NO_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+        actual = doLineBreak(textBuf, BALANCED, NORMAL_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
     }
     {
         constexpr float LINE_WIDTH = 240;
@@ -877,10 +1073,22 @@ TEST_F(OptimalLineBreakerTest, testEmailOrUrl) {
         };
         // clang-format on
 
-        expectBreak(expect, textBuf, HIGH_QUALITY, NO_HYPHENATION, "en-US", LINE_WIDTH);
-        expectBreak(expect, textBuf, HIGH_QUALITY, NORMAL_HYPHENATION, "en-US", LINE_WIDTH);
-        expectBreak(expect, textBuf, BALANCED, NO_HYPHENATION, "en-US", LINE_WIDTH);
-        expectBreak(expect, textBuf, BALANCED, NORMAL_HYPHENATION, "en-US", LINE_WIDTH);
+        auto actual = doLineBreak(textBuf, HIGH_QUALITY, NO_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+        actual = doLineBreak(textBuf, HIGH_QUALITY, NORMAL_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+        actual = doLineBreak(textBuf, BALANCED, NO_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+        actual = doLineBreak(textBuf, BALANCED, NORMAL_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
     }
 }
 
@@ -901,9 +1109,9 @@ TEST_F(OptimalLineBreakerTest, testLocaleSwitch_InEmailOrUrl) {
         builder.addCustomRun<ConstantRun>(Range(0, 18), "en-US", CHAR_WIDTH, ASCENT, DESCENT);
         builder.addCustomRun<ConstantRun>(Range(18, textBuf.size()), "fr-FR", CHAR_WIDTH, ASCENT,
                                           DESCENT);
-        std::unique_ptr<MeasuredText> measured = builder.build(
-                textBuf, true /* compute hyphenation */, false /* compute full layout */,
-                false /* ignore kerning */, nullptr /* no hint */);
+        std::unique_ptr<MeasuredText> measured =
+                builder.build(textBuf, true /* compute hyphenation */,
+                              false /* compute full layout */, nullptr /* no hint */);
 
         // clang-format off
         std::vector<LineBreakExpectation> expect = {
@@ -944,9 +1152,9 @@ TEST_F(OptimalLineBreakerTest, testLocaleSwitch_InEmailOrUrl) {
         builder.addCustomRun<ConstantRun>(Range(0, 18), "en-US", CHAR_WIDTH, ASCENT, DESCENT);
         builder.addCustomRun<ConstantRun>(Range(18, textBuf.size()), "fr-FR", CHAR_WIDTH, ASCENT,
                                           DESCENT);
-        std::unique_ptr<MeasuredText> measured = builder.build(
-                textBuf, true /* compute hyphenation */, false /* compute full layout */,
-                false /* ignore kerning */, nullptr /* no hint */);
+        std::unique_ptr<MeasuredText> measured =
+                builder.build(textBuf, true /* compute hyphenation */,
+                              false /* compute full layout */, nullptr /* no hint */);
 
         // clang-format off
         std::vector<LineBreakExpectation> expect = {
@@ -988,7 +1196,10 @@ TEST_F(OptimalLineBreakerTest, ExtentTest) {
                  CUSTOM_ASCENT, CUSTOM_DESCENT},
         };
 
-        expectBreak(expect, textBuf, HIGH_QUALITY, NO_HYPHEN, "en-US", LINE_WIDTH);
+        auto actual = doLineBreak(textBuf, HIGH_QUALITY, NO_HYPHEN, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
     }
     {
         constexpr float LINE_WIDTH = 200;
@@ -997,7 +1208,10 @@ TEST_F(OptimalLineBreakerTest, ExtentTest) {
                  CUSTOM_ASCENT, CUSTOM_DESCENT},
         };
 
-        expectBreak(expect, textBuf, HIGH_QUALITY, NO_HYPHEN, "en-US", LINE_WIDTH);
+        auto actual = doLineBreak(textBuf, HIGH_QUALITY, NO_HYPHEN, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
     }
     {
         constexpr float LINE_WIDTH = 190;
@@ -1006,7 +1220,10 @@ TEST_F(OptimalLineBreakerTest, ExtentTest) {
                  CUSTOM_DESCENT},
                 {"Japanese.", 90, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
         };
-        expectBreak(expect, textBuf, HIGH_QUALITY, NO_HYPHEN, "en-US", LINE_WIDTH);
+        auto actual = doLineBreak(textBuf, HIGH_QUALITY, NO_HYPHEN, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
     }
     {
         constexpr float LINE_WIDTH = 90;
@@ -1016,7 +1233,10 @@ TEST_F(OptimalLineBreakerTest, ExtentTest) {
                  CUSTOM_DESCENT},
                 {"Japanese.", 90, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
         };
-        expectBreak(expect, textBuf, HIGH_QUALITY, NO_HYPHEN, "en-US", LINE_WIDTH);
+        auto actual = doLineBreak(textBuf, HIGH_QUALITY, NO_HYPHEN, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
     }
     {
         constexpr float LINE_WIDTH = 50;
@@ -1027,7 +1247,10 @@ TEST_F(OptimalLineBreakerTest, ExtentTest) {
                 {"Japan", 50, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
                 {"ese.", 40, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
         };
-        expectBreak(expect, textBuf, HIGH_QUALITY, NO_HYPHEN, "en-US", LINE_WIDTH);
+        auto actual = doLineBreak(textBuf, HIGH_QUALITY, NO_HYPHEN, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
     }
     {
         constexpr float LINE_WIDTH = 40;
@@ -1039,7 +1262,10 @@ TEST_F(OptimalLineBreakerTest, ExtentTest) {
                 {"nese", 40, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
                 {".", 10, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
         };
-        expectBreak(expect, textBuf, HIGH_QUALITY, NO_HYPHEN, "en-US", LINE_WIDTH);
+        auto actual = doLineBreak(textBuf, HIGH_QUALITY, NO_HYPHEN, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
     }
     {
         constexpr float LINE_WIDTH = 20;
@@ -1056,7 +1282,10 @@ TEST_F(OptimalLineBreakerTest, ExtentTest) {
                 {"se", 20, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
                 {".", 10, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
         };
-        expectBreak(expect, textBuf, HIGH_QUALITY, NO_HYPHEN, "en-US", LINE_WIDTH);
+        auto actual = doLineBreak(textBuf, HIGH_QUALITY, NO_HYPHEN, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
     }
     {
         constexpr float LINE_WIDTH = 10;
@@ -1079,7 +1308,10 @@ TEST_F(OptimalLineBreakerTest, ExtentTest) {
                 {"e", 10, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
                 {".", 10, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
         };
-        expectBreak(expect, textBuf, HIGH_QUALITY, NO_HYPHEN, "en-US", LINE_WIDTH);
+        auto actual = doLineBreak(textBuf, HIGH_QUALITY, NO_HYPHEN, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
     }
 }
 
@@ -1099,9 +1331,9 @@ TEST_F(OptimalLineBreakerTest, testReplacementSpanNotBreakTest_SingleChar) {
         builder.addCustomRun<ConstantRun>(Range(21, textBuf.size()), "en-US", CHAR_WIDTH, ASCENT,
                                           DESCENT);
 
-        std::unique_ptr<MeasuredText> measuredText = builder.build(
-                textBuf, false /* compute hyphenation */, false /* compute full layout */,
-                false /* ignore kerning */, nullptr /* no hint */);
+        std::unique_ptr<MeasuredText> measuredText =
+                builder.build(textBuf, false /* compute hyphenation */,
+                              false /* compute full layout */, nullptr /* no hint */);
         RectangleLineWidth rectangleLineWidth(width);
         TabStops tabStops(nullptr, 0, 0);
         return breakLineOptimal(textBuf, *measuredText, rectangleLineWidth,
@@ -1192,9 +1424,9 @@ TEST_F(OptimalLineBreakerTest, testReplacementSpanNotBreakTest_MultipleChars) {
         builder.addCustomRun<ConstantRun>(Range(11, textBuf.size()), "en-US", CHAR_WIDTH, ASCENT,
                                           DESCENT);
 
-        std::unique_ptr<MeasuredText> measuredText = builder.build(
-                textBuf, false /* compute hyphenation */, false /* compute full layout */,
-                false /* ignore kerning */, nullptr /* no hint */);
+        std::unique_ptr<MeasuredText> measuredText =
+                builder.build(textBuf, false /* compute hyphenation */,
+                              false /* compute full layout */, nullptr /* no hint */);
         RectangleLineWidth rectangleLineWidth(width);
         TabStops tabStops(nullptr, 0, 0);
         return breakLineOptimal(textBuf, *measuredText, rectangleLineWidth,
@@ -1280,9 +1512,9 @@ TEST_F(OptimalLineBreakerTest, testReplacementSpanNotBreakTest_continuedReplacem
         builder.addReplacementRun(8, 11, 3 * CHAR_WIDTH, LocaleListCache::getId("en-US"));
         builder.addReplacementRun(11, 19, 8 * CHAR_WIDTH, LocaleListCache::getId("en-US"));
         builder.addReplacementRun(19, 24, 5 * CHAR_WIDTH, LocaleListCache::getId("en-US"));
-        std::unique_ptr<MeasuredText> measuredText = builder.build(
-                textBuf, false /* compute hyphenation */, false /* compute full layout */,
-                false /* ignore kerning */, nullptr /* no hint */);
+        std::unique_ptr<MeasuredText> measuredText =
+                builder.build(textBuf, false /* compute hyphenation */,
+                              false /* compute full layout */, nullptr /* no hint */);
         RectangleLineWidth rectangleLineWidth(width);
         TabStops tabStops(nullptr, 0, 0);
         return breakLineOptimal(textBuf, *measuredText, rectangleLineWidth,
@@ -1356,9 +1588,9 @@ TEST_F(OptimalLineBreakerTest, testReplacementSpanNotBreakTest_CJK) {
         builder.addCustomRun<ConstantRun>(Range(5, textBuf.size()), "ja-JP", CHAR_WIDTH, ASCENT,
                                           DESCENT);
 
-        std::unique_ptr<MeasuredText> measuredText = builder.build(
-                textBuf, false /* compute hyphenation */, false /* compute full layout */,
-                false /* ignore krening */, nullptr /* no hint */);
+        std::unique_ptr<MeasuredText> measuredText =
+                builder.build(textBuf, false /* compute hyphenation */,
+                              false /* compute full layout */, nullptr /* no hint */);
         RectangleLineWidth rectangleLineWidth(width);
         TabStops tabStops(nullptr, 0, 0);
         return breakLineOptimal(textBuf, *measuredText, rectangleLineWidth,
@@ -1513,9 +1745,9 @@ TEST_F(OptimalLineBreakerTest, testReplacementSpan_GraphemeLineBreakWithMultiple
         builder.addCustomRun<ConstantRun>(Range(19, 21), "en-US", CHAR_WIDTH, ASCENT, DESCENT);
         builder.addReplacementRun(21, 26, 5 * CHAR_WIDTH, LocaleListCache::getId("en-US"));
 
-        std::unique_ptr<MeasuredText> measuredText = builder.build(
-                textBuf, false /* compute hyphenation */, false /* compute full layout */,
-                false /* ignore kerning */, nullptr /* no hint */);
+        std::unique_ptr<MeasuredText> measuredText =
+                builder.build(textBuf, false /* compute hyphenation */,
+                              false /* compute full layout */, nullptr /* no hint */);
         RectangleLineWidth rectangleLineWidth(width);
         TabStops tabStops(nullptr, 0, 0);
         return breakLineOptimal(textBuf, *measuredText, rectangleLineWidth,
@@ -1648,9 +1880,9 @@ TEST_F(OptimalLineBreakerTest, testReplacementSpanNotBreakTest_with_punctuation)
         builder.addCustomRun<ConstantRun>(Range(11, textBuf.size()), "en-US", CHAR_WIDTH, ASCENT,
                                           DESCENT);
 
-        std::unique_ptr<MeasuredText> measuredText = builder.build(
-                textBuf, false /* compute hyphenation */, false /* compute full layout */,
-                false /* ignore kerning */, nullptr /* no hint */);
+        std::unique_ptr<MeasuredText> measuredText =
+                builder.build(textBuf, false /* compute hyphenation */,
+                              false /* compute full layout */, nullptr /* no hint */);
         RectangleLineWidth rectangleLineWidth(width);
         TabStops tabStops(nullptr, 0, 0);
         return breakLineOptimal(textBuf, *measuredText, rectangleLineWidth,
@@ -1838,8 +2070,14 @@ TEST_F(OptimalLineBreakerTest, testControllCharAfterSpace) {
                 {"\u2066example", 70, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
         };
 
-        expectBreak(expect, textBuf, HIGH_QUALITY, NO_HYPHENATION, "en-US", LINE_WIDTH);
-        expectBreak(expect, textBuf, BALANCED, NO_HYPHENATION, "en-US", LINE_WIDTH);
+        auto actual = doLineBreak(textBuf, HIGH_QUALITY, NO_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+        actual = doLineBreak(textBuf, BALANCED, NO_HYPHENATION, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
     }
 }
 
@@ -1858,10 +2096,10 @@ TEST_F(OptimalLineBreakerTest, roundingError) {
     float measured = Layout::measureText(textBuffer, Range(0, textBuffer.size()), Bidi::LTR, paint,
                                          StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, nullptr);
 
-    builder.addStyleRun(0, textBuffer.size(), std::move(paint), 0, 0, false);
-    std::unique_ptr<MeasuredText> measuredText = builder.build(
-            textBuffer, false /* compute hyphenation */, false /* compute full layout */,
-            false /* ignore kerning */, nullptr /* no hint */);
+    builder.addStyleRun(0, textBuffer.size(), std::move(paint), false);
+    std::unique_ptr<MeasuredText> measuredText =
+            builder.build(textBuffer, false /* compute hyphenation */,
+                          false /* compute full layout */, nullptr /* no hint */);
     RectangleLineWidth rectangleLineWidth(measured);
     TabStops tabStops(nullptr, 0, 10);
     LineBreakResult r = doLineBreak(textBuffer, *measuredText, BreakStrategy::Balanced,
