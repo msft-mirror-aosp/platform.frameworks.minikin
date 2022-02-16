@@ -53,7 +53,6 @@ cc_test {
         "FontCollectionTest.cpp",
         "FontCollectionItemizeTest.cpp",
         "FontFamilyTest.cpp",
-        "FontFeatureTest.cpp",
         "FontFileParserTest.cpp",
         "FontLanguageListCacheTest.cpp",
         "FontUtilsTest.cpp",
