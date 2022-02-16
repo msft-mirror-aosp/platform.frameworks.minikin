@@ -23,16 +23,16 @@
 #ifndef MINIKIN_WORD_BREAKER_H
 #define MINIKIN_WORD_BREAKER_H
 
-#include <unicode/ubrk.h>
-
 #include <list>
 #include <mutex>
 
-#include "Locale.h"
+#include <unicode/ubrk.h>
+
 #include "minikin/IcuUtils.h"
-#include "minikin/LineBreakStyle.h"
 #include "minikin/Macros.h"
 #include "minikin/Range.h"
+
+#include "Locale.h"
 
 namespace minikin {
 
@@ -42,12 +42,8 @@ class ICULineBreakerPool {
 public:
     struct Slot {
         Slot() : localeId(0), breaker(nullptr) {}
-        Slot(uint64_t localeId, LineBreakStyle lbStyle, LineBreakWordStyle lbWordStyle,
-             IcuUbrkUniquePtr&& breaker)
-                : localeId(localeId),
-                  lbStyle(lbStyle),
-                  lbWordStyle(lbWordStyle),
-                  breaker(std::move(breaker)) {}
+        Slot(uint64_t localeId, IcuUbrkUniquePtr&& breaker)
+                : localeId(localeId), breaker(std::move(breaker)) {}
 
         Slot(Slot&& other) = default;
         Slot& operator=(Slot&& other) = default;
@@ -57,13 +53,10 @@ public:
         Slot& operator=(const Slot&) = delete;
 
         uint64_t localeId;
-        LineBreakStyle lbStyle;
-        LineBreakWordStyle lbWordStyle;
         IcuUbrkUniquePtr breaker;
     };
     virtual ~ICULineBreakerPool() {}
-    virtual Slot acquire(const Locale& locale, LineBreakStyle lbStyle,
-                         LineBreakWordStyle lbWordStyle) = 0;
+    virtual Slot acquire(const Locale& locale) = 0;
     virtual void release(Slot&& slot) = 0;
 };
 
@@ -71,8 +64,7 @@ public:
 // Since creating ICU line breaker instance takes some time. Pool it for later use.
 class ICULineBreakerPoolImpl : public ICULineBreakerPool {
 public:
-    Slot acquire(const Locale& locale, LineBreakStyle lbStyle,
-                 LineBreakWordStyle lbWordStyle) override;
+    Slot acquire(const Locale& locale) override;
     void release(Slot&& slot) override;
 
     static ICULineBreakerPoolImpl& getInstance() {
@@ -107,8 +99,7 @@ public:
 
     // Advance iterator to the break just after "from" with using the new provided locale.
     // Return offset, or -1 if EOT
-    ssize_t followingWithLocale(const Locale& locale, LineBreakStyle lbStyle,
-                                LineBreakWordStyle lbWordStyle, size_t from);
+    ssize_t followingWithLocale(const Locale& locale, size_t from);
 
     // Current offset of iterator, equal to 0 at BOT or last return from next()
     ssize_t current() const;
