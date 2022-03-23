@@ -34,7 +34,6 @@ cc_library {
         "Font.cpp",
         "FontCollection.cpp",
         "FontFamily.cpp",
-        "FontFeatureUtils.cpp",
         "FontFileParser.cpp",
         "FontUtils.cpp",
         "GraphemeBreak.cpp",

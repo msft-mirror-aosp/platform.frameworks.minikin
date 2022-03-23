@@ -75,37 +75,6 @@ void StyleRun::getMetrics(const U16StringPiece& textBuf, std::vector<float>* adv
     }
 }
 
-// Helper class for composing total advances.
-class TotalAdvancesCompositor {
-public:
-    TotalAdvancesCompositor() : mOut(0) {}
-
-    void operator()(const LayoutPiece& layoutPiece, const MinikinPaint&) {
-        for (float w : layoutPiece.advances()) {
-            mOut += w;
-        }
-    }
-
-    float getTotalAdvance() { return mOut; }
-
-private:
-    float mOut;
-};
-
-float StyleRun::measureText(const U16StringPiece& textBuf) const {
-    TotalAdvancesCompositor compositor;
-    const Bidi bidiFlag = mIsRtl ? Bidi::FORCE_RTL : Bidi::FORCE_LTR;
-    LayoutCache& layoutCache = LayoutCache::getInstance();
-    for (const BidiText::RunInfo info : BidiText(textBuf, Range(0, textBuf.length()), bidiFlag)) {
-        for (const auto [context, piece] : LayoutSplitter(textBuf, info.range, info.isRtl)) {
-            layoutCache.getOrCreate(textBuf.substr(context), piece - context.getStart(), mPaint,
-                                    info.isRtl, StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT,
-                                    compositor);
-        }
-    }
-    return compositor.getTotalAdvance();
-}
-
 // Helper class for composing total amount of advance
 class TotalAdvanceCompositor {
 public:
@@ -156,7 +125,7 @@ float StyleRun::measureHyphenPiece(const U16StringPiece& textBuf, const Range& r
 }
 
 void MeasuredText::measure(const U16StringPiece& textBuf, bool computeHyphenation,
-                           bool computeLayout, bool ignoreHyphenKerning, MeasuredText* hint) {
+                           bool computeLayout, MeasuredText* hint) {
     if (textBuf.size() == 0) {
         return;
     }
@@ -184,8 +153,7 @@ void MeasuredText::measure(const U16StringPiece& textBuf, bool computeHyphenatio
             }
 
             populateHyphenationPoints(textBuf, *run, *proc.hyphenator, proc.contextRange(),
-                                      proc.wordRange(), widths, ignoreHyphenKerning, &hyphenBreaks,
-                                      piecesOut);
+                                      proc.wordRange(), &hyphenBreaks, piecesOut);
         }
     }
 }
