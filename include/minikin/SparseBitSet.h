@@ -17,7 +17,6 @@
 #ifndef MINIKIN_SPARSE_BIT_SET_H
 #define MINIKIN_SPARSE_BIT_SET_H
 
-#include <minikin/Buffer.h>
 #include <sys/types.h>
 #include <cstdint>
 #include <memory>
@@ -43,12 +42,8 @@ public:
         initFromRanges(ranges, nRanges);
     }
 
-    explicit SparseBitSet(BufferReader* reader) : SparseBitSet() { initFromBuffer(reader); }
-
     SparseBitSet(SparseBitSet&&) = default;
     SparseBitSet& operator=(SparseBitSet&&) = default;
-
-    void writeTo(BufferWriter* writer) const;
 
     // Determine whether the value is included in the set
     bool get(uint32_t ch) const {
@@ -69,7 +64,6 @@ public:
 
 private:
     void initFromRanges(const uint32_t* ranges, size_t nRanges);
-    void initFromBuffer(BufferReader* reader);
 
     static const uint32_t kMaximumCapacity = 0xFFFFFF;
     static const int kLogValuesPerPage = 8;
@@ -87,15 +81,10 @@ private:
     static int CountLeadingZeros(element x);
 
     uint32_t mMaxVal;
-    uint32_t mIndicesCount;
-    const uint16_t* mIndices;
-    uint32_t mBitmapsCount;
-    const element* mBitmaps;
-    uint16_t mZeroPageIndex;
 
-    // Owns allocated memory if this class is created from ranges, otherwise these are nullptr.
-    std::unique_ptr<uint16_t[]> mOwnedIndices;
-    std::unique_ptr<element[]> mOwnedBitmaps;
+    std::unique_ptr<uint16_t[]> mIndices;
+    std::unique_ptr<element[]> mBitmaps;
+    uint16_t mZeroPageIndex;
 
     // Forbid copy and assign.
     SparseBitSet(const SparseBitSet&) = delete;

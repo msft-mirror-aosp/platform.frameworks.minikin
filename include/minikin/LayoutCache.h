@@ -83,9 +83,9 @@ public:
 
 private:
     const uint16_t* mChars;
-    uint32_t mNchars;
-    uint32_t mStart;
-    uint32_t mCount;
+    size_t mNchars;
+    size_t mStart;
+    size_t mCount;
     uint32_t mId;  // for the font collection
     FontStyle mStyle;
     float mSize;

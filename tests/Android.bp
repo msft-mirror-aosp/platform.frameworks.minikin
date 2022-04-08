@@ -1,13 +1,8 @@
-package {
-    default_applicable_licenses: ["Android-Apache-2.0"],
-}
-
 filegroup {
     name: "minikin-test-data",
     srcs: [
         "data/Arabic.ttf",
         "data/Ascii.ttf",
-        "data/Bbox.ttf",
         "data/Bold.ttf",
         "data/BoldItalic.ttf",
         "data/Cherokee.ttf",
@@ -15,7 +10,6 @@ filegroup {
         "data/ColorTextMixedEmojiFont.ttf",
         "data/CustomExtent.ttf",
         "data/Emoji.ttf",
-        "data/EmojiBase.ttf",
         "data/Hiragana.ttf",
         "data/Italic.ttf",
         "data/Ja.ttf",
@@ -25,7 +19,6 @@ filegroup {
         "data/MultiAxis.ttf",
         "data/NoCmapFormat14.ttf",
         "data/NoGlyphFont.ttf",
-        "data/OverrideEmoji.ttf",
         "data/Regular.ttf",
         "data/TextEmojiFont.ttf",
         "data/UnicodeBMPOnly.ttf",
@@ -35,7 +28,6 @@ filegroup {
         "data/ZhHans.ttf",
         "data/ZhHant.ttf",
         "data/emoji.xml",
-        "data/emoji_itemization.xml",
         "data/itemize.xml",
     ],
 }

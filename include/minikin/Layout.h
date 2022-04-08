@@ -84,8 +84,7 @@ public:
 
     // public accessors
     size_t nGlyphs() const { return mGlyphs.size(); }
-    const Font* getFont(int i) const { return mGlyphs[i].font.font.get(); }
-    const std::shared_ptr<Font>& getFontRef(int i) const { return mGlyphs[i].font.font; }
+    const MinikinFont* getFont(int i) const { return mGlyphs[i].font.font->typeface().get(); }
     FontFakery getFakery(int i) const { return mGlyphs[i].font.fakery; }
     unsigned int getGlyphId(int i) const { return mGlyphs[i].glyph_id; }
     float getX(int i) const { return mGlyphs[i].x; }
@@ -93,6 +92,8 @@ public:
     float getAdvance() const { return mAdvance; }
     float getCharAdvance(size_t i) const { return mAdvances[i]; }
     const std::vector<float>& getAdvances() const { return mAdvances; }
+    void getBounds(MinikinRect* rect) const { rect->set(mBounds); }
+    const MinikinRect& getBounds() const { return mBounds; }
 
     // Purge all caches, useful in low memory conditions
     static void purgeCaches();
@@ -134,6 +135,7 @@ private:
     std::vector<float> mAdvances;
 
     float mAdvance;
+    MinikinRect mBounds;
 };
 
 }  // namespace minikin
