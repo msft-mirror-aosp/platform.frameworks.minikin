@@ -822,38 +822,39 @@ TEST_F(FontFamilyTest, closestMatch) {
 }
 
 TEST_F(FontFamilyTest, bufferTest) {
+    FreeTypeMinikinFontForTestFactory::init();
     {
         // Font with variation selectors
         std::shared_ptr<FontFamily> original = buildFontFamily(kVsTestFont);
-        std::vector<uint8_t> buffer =
-                writeToBuffer<FontFamily, writeFreeTypeMinikinFontForTest>(*original);
+        std::vector<uint8_t> buffer = writeToBuffer<FontFamily>(*original);
         BufferReader reader(buffer.data());
-        std::shared_ptr<FontFamily> copied =
-                FontFamily::readFrom<readFreeTypeMinikinFontForTest>(&reader);
+        std::shared_ptr<FontFamily> copied = FontFamily::readFrom(&reader);
         ASSERT_EQ(original->localeListId(), copied->localeListId());
         ASSERT_EQ(original->variant(), copied->variant());
         ASSERT_EQ(original->getNumFonts(), copied->getNumFonts());
-        ASSERT_EQ(original->supportedAxes(), copied->supportedAxes());
+        ASSERT_EQ(original->getSupportedAxesCount(), copied->getSupportedAxesCount());
+        for (size_t i = 0; i < original->getSupportedAxesCount(); i++) {
+            ASSERT_EQ(original->getSupportedAxisAt(i), copied->getSupportedAxisAt(i));
+        }
         ASSERT_EQ(original->isColorEmojiFamily(), copied->isColorEmojiFamily());
         ASSERT_EQ(original->isCustomFallback(), copied->isCustomFallback());
         ASSERT_EQ(original->hasVSTable(), copied->hasVSTable());
         expectVSGlyphsForVsTestFont(copied.get());
-        std::vector<uint8_t> newBuffer =
-                writeToBuffer<FontFamily, writeFreeTypeMinikinFontForTest>(*copied);
+        std::vector<uint8_t> newBuffer = writeToBuffer<FontFamily>(*copied);
         ASSERT_EQ(buffer, newBuffer);
     }
     {
         // Font with axes
         constexpr char kMultiAxisFont[] = "MultiAxis.ttf";
         std::shared_ptr<FontFamily> original = buildFontFamily(kMultiAxisFont);
-        std::vector<uint8_t> buffer =
-                writeToBuffer<FontFamily, writeFreeTypeMinikinFontForTest>(*original);
+        std::vector<uint8_t> buffer = writeToBuffer<FontFamily>(*original);
         BufferReader reader(buffer.data());
-        std::shared_ptr<FontFamily> copied =
-                FontFamily::readFrom<readFreeTypeMinikinFontForTest>(&reader);
-        ASSERT_EQ(original->supportedAxes(), copied->supportedAxes());
-        std::vector<uint8_t> newBuffer =
-                writeToBuffer<FontFamily, writeFreeTypeMinikinFontForTest>(*copied);
+        std::shared_ptr<FontFamily> copied = FontFamily::readFrom(&reader);
+        ASSERT_EQ(original->getSupportedAxesCount(), copied->getSupportedAxesCount());
+        for (size_t i = 0; i < original->getSupportedAxesCount(); i++) {
+            ASSERT_EQ(original->getSupportedAxisAt(i), copied->getSupportedAxisAt(i));
+        }
+        std::vector<uint8_t> newBuffer = writeToBuffer<FontFamily>(*copied);
         ASSERT_EQ(buffer, newBuffer);
     }
 }
