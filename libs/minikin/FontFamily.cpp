@@ -69,7 +69,7 @@ FontFamily::FontFamily(uint32_t localeListId, FamilyVariant variant,
                        std::unique_ptr<std::shared_ptr<Font>[]>&& fonts, uint32_t fontsCount,
                        std::unique_ptr<AxisTag[]>&& supportedAxes, uint32_t supportedAxesCount,
                        bool isColorEmoji, bool isCustomFallback, SparseBitSet&& coverage,
-                       std::unique_ptr<std::unique_ptr<SparseBitSet>[]>&& cmapFmt14Coverage,
+                       std::unique_ptr<SparseBitSet[]>&& cmapFmt14Coverage,
                        uint16_t cmapFmt14CoverageCount)
         : mFonts(std::move(fonts)),
           mSupportedAxes(std::move(supportedAxes)),
@@ -97,22 +97,24 @@ std::shared_ptr<FontFamily> FontFamily::readFrom(BufferReader* reader) {
     // AxisTag is uint32_t
     static_assert(sizeof(AxisTag) == 4);
     const auto& [axesPtr, axesCount] = reader->readArray<AxisTag>();
-    auto supportedAxes = std::unique_ptr<AxisTag[]>(new AxisTag[axesCount]);
-    std::copy(axesPtr, axesPtr + axesCount, supportedAxes.get());
+    std::unique_ptr<AxisTag[]> supportedAxes = nullptr;
+    if (axesCount > 0) {
+        supportedAxes = std::unique_ptr<AxisTag[]>(new AxisTag[axesCount]);
+        std::copy(axesPtr, axesPtr + axesCount, supportedAxes.get());
+    }
     bool isColorEmoji = static_cast<bool>(reader->read<uint8_t>());
     bool isCustomFallback = static_cast<bool>(reader->read<uint8_t>());
     SparseBitSet coverage(reader);
-    std::unique_ptr<std::unique_ptr<SparseBitSet>[]> cmapFmt14Coverage = nullptr;
+    std::unique_ptr<SparseBitSet[]> cmapFmt14Coverage = nullptr;
     // Read mCmapFmt14Coverage. As it can have null entries, it is stored in the buffer as a sparse
     // array (size, non-null entry count, array of (index, entry)).
     uint32_t cmapFmt14CoverageSize = reader->read<uint32_t>();
     if (cmapFmt14CoverageSize > 0) {
-        cmapFmt14Coverage =
-                std::make_unique<std::unique_ptr<SparseBitSet>[]>(cmapFmt14CoverageSize);
+        cmapFmt14Coverage = std::make_unique<SparseBitSet[]>(cmapFmt14CoverageSize);
         uint32_t cmapFmt14CoverageEntryCount = reader->read<uint32_t>();
         for (uint32_t i = 0; i < cmapFmt14CoverageEntryCount; i++) {
             uint32_t index = reader->read<uint32_t>();
-            cmapFmt14Coverage[index] = std::make_unique<SparseBitSet>(reader);
+            cmapFmt14Coverage[index] = SparseBitSet(reader);
         }
     }
     return std::shared_ptr<FontFamily>(new FontFamily(
@@ -139,13 +141,13 @@ void FontFamily::writeTo(BufferWriter* writer) const {
     if (mCmapFmt14CoverageCount > 0) {
         uint32_t cmapFmt14CoverageEntryCount = 0;
         for (size_t i = 0; i < mCmapFmt14CoverageCount; i++) {
-            if (mCmapFmt14Coverage[i]) cmapFmt14CoverageEntryCount++;
+            if (!mCmapFmt14Coverage[i].empty()) cmapFmt14CoverageEntryCount++;
         }
         writer->write<uint32_t>(cmapFmt14CoverageEntryCount);
         for (size_t i = 0; i < mCmapFmt14CoverageCount; i++) {
-            if (mCmapFmt14Coverage[i]) {
+            if (!mCmapFmt14Coverage[i].empty()) {
                 writer->write<uint32_t>(i);
-                mCmapFmt14Coverage[i]->writeTo(writer);
+                mCmapFmt14Coverage[i].writeTo(writer);
             }
         }
     }
@@ -195,7 +197,7 @@ void FontFamily::computeCoverage() {
         return;
     }
 
-    std::vector<std::unique_ptr<SparseBitSet>> cmapFmt14Coverage;
+    std::vector<SparseBitSet> cmapFmt14Coverage;
     mCoverage = CmapCoverage::getCoverage(cmapTable.get(), cmapTable.size(), &cmapFmt14Coverage);
     static_assert(INVALID_VS_INDEX <= std::numeric_limits<uint16_t>::max());
     // cmapFmt14Coverage maps VS index to coverage.
@@ -204,8 +206,7 @@ void FontFamily::computeCoverage() {
                    "cmapFmt14Coverage's size must not exceed INVALID_VS_INDEX.");
     mCmapFmt14CoverageCount = static_cast<uint16_t>(cmapFmt14Coverage.size());
     if (mCmapFmt14CoverageCount > 0) {
-        mCmapFmt14Coverage =
-                std::make_unique<std::unique_ptr<SparseBitSet>[]>(mCmapFmt14CoverageCount);
+        mCmapFmt14Coverage = std::make_unique<SparseBitSet[]>(mCmapFmt14CoverageCount);
         for (size_t i = 0; i < mCmapFmt14CoverageCount; i++) {
             mCmapFmt14Coverage[i] = std::move(cmapFmt14Coverage[i]);
         }
@@ -243,12 +244,12 @@ bool FontFamily::hasGlyph(uint32_t codepoint, uint32_t variationSelector) const 
         return false;
     }
 
-    const std::unique_ptr<SparseBitSet>& bitset = mCmapFmt14Coverage[vsIndex];
-    if (bitset.get() == nullptr) {
+    const SparseBitSet& bitset = mCmapFmt14Coverage[vsIndex];
+    if (bitset.empty()) {
         return false;
     }
 
-    return bitset->get(codepoint);
+    return bitset.get(codepoint);
 }
 
 std::shared_ptr<FontFamily> FontFamily::createFamilyWithVariation(
