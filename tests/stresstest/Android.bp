@@ -47,5 +47,9 @@ cc_test {
         "MultithreadTest.cpp",
     ],
 
-    defaults: ["libminikin_defaults"],
+    cflags: [
+        "-Werror",
+        "-Wall",
+        "-Wextra",
+    ],
 }

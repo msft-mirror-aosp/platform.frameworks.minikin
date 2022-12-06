@@ -21,7 +21,11 @@ package {
 cc_benchmark {
     name: "minikin_perftests",
     test_suites: ["device-tests"],
-    defaults: ["libminikin_defaults"],
+    cppflags: [
+        "-Werror",
+        "-Wall",
+        "-Wextra",
+    ],
     srcs: [
         "FontCollection.cpp",
         "FontLanguage.cpp",

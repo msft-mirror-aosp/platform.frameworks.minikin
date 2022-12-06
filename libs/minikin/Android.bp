@@ -57,7 +57,10 @@ cc_library {
         "SystemFonts.cpp",
         "WordBreaker.cpp",
     ],
-    defaults: ["libminikin_defaults"],
+    cflags: [
+        "-Wall",
+        "-Werror",
+    ],
     sanitize: {
         misc_undefined: [
             "signed-integer-overflow",
@@ -65,6 +68,12 @@ cc_library {
             "bounds",
         ],
     },
+    cppflags: [
+        "-Werror",
+        "-Wall",
+        "-Wextra",
+        "-Wthread-safety",
+    ],
     product_variables: {
         debuggable: {
             // Enable assertion on eng and userdebug build.
