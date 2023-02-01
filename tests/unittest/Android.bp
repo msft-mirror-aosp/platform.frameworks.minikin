@@ -36,7 +36,7 @@ cc_test {
     shared_libs: [
         "libft2",
         "libharfbuzz_ng",
-        "libandroidicu",
+        "libicu",
         "liblog",
         "libutils",
         "libz",
@@ -53,6 +53,7 @@ cc_test {
         "FontCollectionTest.cpp",
         "FontCollectionItemizeTest.cpp",
         "FontFamilyTest.cpp",
+        "FontFeatureTest.cpp",
         "FontFileParserTest.cpp",
         "FontLanguageListCacheTest.cpp",
         "FontUtilsTest.cpp",
@@ -78,9 +79,5 @@ cc_test {
         "WordBreakerTests.cpp",
     ],
 
-    cflags: [
-        "-Werror",
-        "-Wall",
-        "-Wextra",
-    ],
+    defaults: ["libminikin_defaults"],
 }
