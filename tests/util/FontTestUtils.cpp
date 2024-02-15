@@ -16,18 +16,18 @@
 
 #define LOG_TAG "Minikin"
 
-#include <libxml/tree.h>
+#include "FontTestUtils.h"
+
+#include <libxml/parser.h>
 #include <log/log.h>
 #include <unistd.h>
 
-#include "minikin/FontCollection.h"
-#include "minikin/FontFamily.h"
-#include "minikin/LocaleList.h"
-
-#include "FontTestUtils.h"
 #include "FreeTypeMinikinFontForTest.h"
 #include "LocaleListCache.h"
 #include "MinikinInternal.h"
+#include "minikin/FontCollection.h"
+#include "minikin/FontFamily.h"
+#include "minikin/LocaleList.h"
 
 namespace minikin {
 
@@ -109,9 +109,9 @@ std::vector<std::shared_ptr<FontFamily>> getFontFamilies(const std::string& font
             family = FontFamily::create(variant, std::move(fonts));
         } else {
             uint32_t langId = registerLocaleList(std::string((const char*)lang, xmlStrlen(lang)));
-            family =
-                    FontFamily::create(langId, variant, std::move(fonts),
-                                       false /* isCustomFallback */, false /* isdefaultFallback */);
+            family = FontFamily::create(langId, variant, std::move(fonts),
+                                        false /* isCustomFallback */, false /* isdefaultFallback */,
+                                        VariationFamilyType::None);
         }
         families.push_back(family);
     }
@@ -136,7 +136,8 @@ std::shared_ptr<FontFamily> buildFontFamily(const std::string& filePath, const s
     std::vector<std::shared_ptr<Font>> fonts;
     fonts.push_back(Font::Builder(font).build());
     return FontFamily::create(LocaleListCache::getId(lang), FamilyVariant::DEFAULT,
-                              std::move(fonts), isCustomFallback, false /* isDefaultFallback */);
+                              std::move(fonts), isCustomFallback, false /* isDefaultFallback */,
+                              VariationFamilyType::None);
 }
 
 }  // namespace minikin
