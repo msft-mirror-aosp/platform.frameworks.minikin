@@ -17,13 +17,14 @@
 #ifndef MINIKIN_TEST_FREE_TYPE_MINIKIN_FONT_FOR_TEST_H
 #define MINIKIN_TEST_FREE_TYPE_MINIKIN_FONT_FOR_TEST_H
 
+#include <ft2build.h>
+
 #include <string>
 
 #include "minikin/Buffer.h"
 #include "minikin/Font.h"
 #include "minikin/MinikinFont.h"
-
-#include <ft2build.h>
+#include "minikin/MinikinFontFactory.h"
 #include FT_FREETYPE_H
 
 #include "minikin/Macros.h"
@@ -32,9 +33,12 @@ namespace minikin {
 
 class FreeTypeMinikinFontForTest : public MinikinFont {
 public:
-    FreeTypeMinikinFontForTest(const std::string& font_path, int index);
+    FreeTypeMinikinFontForTest(const std::string& font_path, int index,
+                               const std::vector<FontVariation>& axes);
+    FreeTypeMinikinFontForTest(const std::string& font_path, int index)
+            : FreeTypeMinikinFontForTest(font_path, index, std::vector<FontVariation>()) {}
     FreeTypeMinikinFontForTest(const std::string& font_path)
-            : FreeTypeMinikinFontForTest(font_path, 0) {}
+            : FreeTypeMinikinFontForTest(font_path, 0, std::vector<FontVariation>()) {}
     virtual ~FreeTypeMinikinFontForTest();
 
     // MinikinFont overrides.
@@ -50,6 +54,7 @@ public:
     size_t GetFontSize() const { return mFontSize; }
     int GetFontIndex() const { return mFontIndex; }
     const std::vector<minikin::FontVariation>& GetAxes() const { return mAxes; }
+    std::shared_ptr<MinikinFont> createFontWithVariation(const std::vector<FontVariation>&) const;
 
 private:
     const std::string mFontPath;
@@ -64,9 +69,19 @@ private:
     MINIKIN_PREVENT_COPY_AND_ASSIGN(FreeTypeMinikinFontForTest);
 };
 
-void writeFreeTypeMinikinFontForTest(BufferWriter* writer, const MinikinFont* typeface);
+class FreeTypeMinikinFontForTestFactory : MinikinFontFactory {
+private:
+    FreeTypeMinikinFontForTestFactory();
 
-Font::TypefaceLoader* readFreeTypeMinikinFontForTest(BufferReader* reader);
+public:
+    static void init();
+
+    void write(BufferWriter* writer, const MinikinFont* typeface) const override;
+
+    std::shared_ptr<MinikinFont> create(BufferReader reader) const override;
+
+    void skip(BufferReader* reader) const override;
+};
 
 }  // namespace minikin
 

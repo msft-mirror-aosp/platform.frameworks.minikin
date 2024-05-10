@@ -59,8 +59,9 @@ void loadGlyphOrDie(uint32_t glyphId, float size, FT_Face face) {
 
 }  // namespace
 
-FreeTypeMinikinFontForTest::FreeTypeMinikinFontForTest(const std::string& font_path, int index)
-        : mFontPath(font_path), mFontIndex(index) {
+FreeTypeMinikinFontForTest::FreeTypeMinikinFontForTest(const std::string& font_path, int index,
+                                                       const std::vector<FontVariation>& axes)
+        : mFontPath(font_path), mFontIndex(index), mAxes(axes) {
     int fd = open(font_path.c_str(), O_RDONLY);
     LOG_ALWAYS_FATAL_IF(fd == -1, "Open failed: %s", font_path.c_str());
     struct stat st = {};
@@ -112,18 +113,32 @@ void FreeTypeMinikinFontForTest::GetFontExtent(MinikinExtent* extent, const Mini
     extent->descent = -static_cast<float>(mFtFace->descender) * paint.size / upem;
 }
 
-void writeFreeTypeMinikinFontForTest(BufferWriter* writer, const MinikinFont* typeface) {
+FreeTypeMinikinFontForTestFactory::FreeTypeMinikinFontForTestFactory() : MinikinFontFactory() {
+    MinikinFontFactory::setInstance(this);
+}
+
+// static
+void FreeTypeMinikinFontForTestFactory::init() {
+    static FreeTypeMinikinFontForTestFactory factory;
+}
+
+void FreeTypeMinikinFontForTestFactory::write(BufferWriter* writer,
+                                              const MinikinFont* typeface) const {
     writer->writeString(typeface->GetFontPath());
 }
 
-std::shared_ptr<MinikinFont> loadFreeTypeMinikinFontForTest(BufferReader reader) {
+std::shared_ptr<MinikinFont> FreeTypeMinikinFontForTestFactory::create(BufferReader reader) const {
     std::string fontPath(reader.readString());
     return std::make_shared<FreeTypeMinikinFontForTest>(fontPath);
 }
 
-Font::TypefaceLoader* readFreeTypeMinikinFontForTest(BufferReader* reader) {
+void FreeTypeMinikinFontForTestFactory::skip(BufferReader* reader) const {
     reader->skipString();  // fontPath
-    return &loadFreeTypeMinikinFontForTest;
+}
+
+std::shared_ptr<MinikinFont> FreeTypeMinikinFontForTest::createFontWithVariation(
+        const std::vector<FontVariation>& axes) const {
+    return std::make_shared<FreeTypeMinikinFontForTest>(mFontPath, mFontIndex, axes);
 }
 
 }  // namespace minikin

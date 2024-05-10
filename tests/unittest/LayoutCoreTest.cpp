@@ -33,28 +33,38 @@ static LayoutPiece buildLayout(const std::string& text, const MinikinPaint& pain
                        StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT);
 }
 
-static LayoutPiece buildLayout(const std::string& text, const std::vector<std::string>& fonts) {
-    std::vector<std::shared_ptr<FontFamily>> families;
-    for (const auto& fontPath : fonts) {
-        families.push_back(buildFontFamily(fontPath));
-    }
-    auto fc = std::make_shared<FontCollection>(families);
+static LayoutPiece buildLayout(const std::string& text, std::shared_ptr<FontCollection> fc) {
     MinikinPaint paint(fc);
     paint.size = 10.0f;  // make 1em = 10px
     return buildLayout(text, paint);
 }
 
-static LayoutPiece buildLayout(const std::string& text, const std::vector<std::string>& fonts,
+static std::pair<LayoutPiece, MinikinRect> buildLayoutAndBounds(
+        const std::string& text, std::shared_ptr<FontCollection> fc) {
+    MinikinPaint paint(fc);
+    paint.size = 10.0f;  // make 1em = 10px
+    auto utf16 = utf8ToUtf16(text);
+    LayoutPiece lp = LayoutPiece(utf16, Range(0, utf16.size()), false /* rtl */, paint,
+                                 StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT);
+    MinikinRect rect = LayoutPiece::calculateBounds(lp, paint);
+    return std::make_pair(lp, rect);
+}
+
+static LayoutPiece buildLayout(const std::string& text, std::shared_ptr<FontCollection> fc,
                                const std::string fontFeaturesSettings) {
+    MinikinPaint paint(fc);
+    paint.size = 10.0f;  // make 1em = 10px
+    paint.fontFeatureSettings = FontFeature::parse(fontFeaturesSettings);
+    return buildLayout(text, paint);
+}
+
+static std::shared_ptr<FontCollection> makeFontCollection(
+        std::initializer_list<std::string> fonts) {
     std::vector<std::shared_ptr<FontFamily>> families;
     for (const auto& fontPath : fonts) {
         families.push_back(buildFontFamily(fontPath));
     }
-    auto fc = std::make_shared<FontCollection>(families);
-    MinikinPaint paint(fc);
-    paint.size = 10.0f;  // make 1em = 10px
-    paint.fontFeatureSettings = fontFeaturesSettings;
-    return buildLayout(text, paint);
+    return FontCollection::create(families);
 }
 
 TEST(LayoutPieceTest, doLayoutTest) {
@@ -71,7 +81,8 @@ TEST(LayoutPieceTest, doLayoutTest) {
     // U+FFFD (invalid surrogate will be replaced to this): 7em, (0, 0) - (7, 7)
     // U+10331 (\uD800\uDF31): 10em, (0, 0) - (10, 10)
     {
-        auto layout = buildLayout("I", {"LayoutTestFont.ttf"});
+        auto fc = makeFontCollection({"LayoutTestFont.ttf"});
+        auto layout = buildLayout("I", fc);
         EXPECT_EQ(1u, layout.glyphCount());
         EXPECT_EQ(Point(0, 0), layout.pointAt(0));
         EXPECT_EQ(MinikinExtent(-100.0f, 20.0f), layout.extent());
@@ -82,7 +93,8 @@ TEST(LayoutPieceTest, doLayoutTest) {
         EXPECT_EQ(10.0f, layout.advance());
     }
     {
-        auto layout = buildLayout("II", {"LayoutTestFont.ttf"});
+        auto fc = makeFontCollection({"LayoutTestFont.ttf"});
+        auto layout = buildLayout("II", fc);
         EXPECT_EQ(2u, layout.glyphCount());
         EXPECT_EQ(Point(0, 0), layout.pointAt(0));
         EXPECT_EQ(Point(10.0f, 0), layout.pointAt(1));
@@ -97,7 +109,8 @@ TEST(LayoutPieceTest, doLayoutTest) {
         EXPECT_EQ(20.0f, layout.advance());
     }
     {
-        auto layout = buildLayout("IV", {"LayoutTestFont.ttf"});
+        auto fc = makeFontCollection({"LayoutTestFont.ttf"});
+        auto layout = buildLayout("IV", fc);
         EXPECT_EQ(2u, layout.glyphCount());
         EXPECT_EQ(Point(0, 0), layout.pointAt(0));
         EXPECT_EQ(Point(10.0f, 0), layout.pointAt(1));
@@ -123,7 +136,8 @@ TEST(LayoutPieceTest, doLayoutTest_MultiFont) {
     // U+3048: 2em, (0, 0) - (2, 2)
     // U+304A: 2em, (0, 0) - (2, 2)
     {
-        auto layout = buildLayout("I\u3042", {"LayoutTestFont.ttf", "Hiragana.ttf"});
+        auto fc = makeFontCollection({"LayoutTestFont.ttf", "Hiragana.ttf"});
+        auto layout = buildLayout("I\u3042", fc);
         EXPECT_EQ(2u, layout.glyphCount());
         EXPECT_EQ(Point(0, 0), layout.pointAt(0));
         EXPECT_EQ(Point(10.0f, 0), layout.pointAt(1));
@@ -138,7 +152,8 @@ TEST(LayoutPieceTest, doLayoutTest_MultiFont) {
         EXPECT_EQ(30.0f, layout.advance());
     }
     {
-        auto layout = buildLayout("\u3042I", {"LayoutTestFont.ttf", "Hiragana.ttf"});
+        auto fc = makeFontCollection({"LayoutTestFont.ttf", "Hiragana.ttf"});
+        auto layout = buildLayout("\u3042I", fc);
         EXPECT_EQ(2u, layout.glyphCount());
         EXPECT_EQ(Point(0, 0), layout.pointAt(0));
         EXPECT_EQ(Point(20.0f, 0), layout.pointAt(1));
@@ -160,7 +175,8 @@ TEST(LayoutPieceTest, doLayoutTest_Ligature) {
     // U+0020..U+007E: 1em, (0, 0) - (1, 1)
     // Also this has ligature entry for fi as "ccmp" feature, ff as "liga" feature.
     {
-        auto layout = buildLayout("fi", {"Ligature.ttf"});
+        auto fc = makeFontCollection({"Ligature.ttf"});
+        auto layout = buildLayout("fi", fc);
         EXPECT_EQ(1u, layout.glyphCount());
         EXPECT_EQ(Point(0, 0), layout.pointAt(0));
         EXPECT_EQ(MinikinExtent(-80.0f, 20.0f), layout.extent());
@@ -172,7 +188,8 @@ TEST(LayoutPieceTest, doLayoutTest_Ligature) {
         EXPECT_EQ(10.0f, layout.advance());
     }
     {
-        auto layout = buildLayout("ff", {"Ligature.ttf"});
+        auto fc = makeFontCollection({"Ligature.ttf"});
+        auto layout = buildLayout("ff", fc);
         EXPECT_EQ(1u, layout.glyphCount());
         EXPECT_EQ(Point(0, 0), layout.pointAt(0));
         EXPECT_EQ(MinikinExtent(-80.0f, 20.0f), layout.extent());
@@ -184,7 +201,8 @@ TEST(LayoutPieceTest, doLayoutTest_Ligature) {
         EXPECT_EQ(10.0f, layout.advance());
     }
     {
-        auto layout = buildLayout("fi", {"Ligature.ttf"}, "'liga' off");
+        auto fc = makeFontCollection({"Ligature.ttf"});
+        auto layout = buildLayout("fi", fc, "'liga' off");
         EXPECT_EQ(1u, layout.glyphCount());
         EXPECT_EQ(Point(0, 0), layout.pointAt(0));
         EXPECT_EQ(MinikinExtent(-80.0f, 20.0f), layout.extent());
@@ -196,7 +214,8 @@ TEST(LayoutPieceTest, doLayoutTest_Ligature) {
         EXPECT_EQ(10.0f, layout.advance());
     }
     {
-        auto layout = buildLayout("ff", {"Ligature.ttf"}, "'liga' off");
+        auto fc = makeFontCollection({"Ligature.ttf"});
+        auto layout = buildLayout("ff", fc, "'liga' off");
         EXPECT_EQ(2u, layout.glyphCount());
         EXPECT_EQ(Point(0, 0), layout.pointAt(0));
         EXPECT_EQ(MinikinExtent(-80.0f, 20.0f), layout.extent());
@@ -210,7 +229,8 @@ TEST(LayoutPieceTest, doLayoutTest_Ligature) {
         EXPECT_EQ(20.0f, layout.advance());
     }
     {
-        auto layout = buildLayout("fii", {"Ligature.ttf"});
+        auto fc = makeFontCollection({"Ligature.ttf"});
+        auto layout = buildLayout("fii", fc);
         EXPECT_EQ(2u, layout.glyphCount());
         EXPECT_EQ(Point(0, 0), layout.pointAt(0));
         EXPECT_EQ(MinikinExtent(-80.0f, 20.0f), layout.extent());
@@ -225,7 +245,8 @@ TEST(LayoutPieceTest, doLayoutTest_Ligature) {
         EXPECT_EQ(20.0f, layout.advance());
     }
     {
-        auto layout = buildLayout("if", {"Ligature.ttf"});
+        auto fc = makeFontCollection({"Ligature.ttf"});
+        auto layout = buildLayout("if", fc);
         EXPECT_EQ(2u, layout.glyphCount());
         EXPECT_EQ(Point(0, 0), layout.pointAt(0));
         EXPECT_EQ(MinikinExtent(-80.0f, 20.0f), layout.extent());
@@ -237,6 +258,69 @@ TEST(LayoutPieceTest, doLayoutTest_Ligature) {
         EXPECT_EQ(10.0f, layout.advances()[0]);
         EXPECT_EQ(10.0f, layout.advances()[1]);
         EXPECT_EQ(20.0f, layout.advance());
+    }
+}
+
+TEST(LayoutPieceTest, doLayoutTest_Overshoot) {
+    // See doLayoutTest for the details of OvershootTest.ttf
+    // The OvershootTest.ttf has following coverage, extent, width and bbox.
+    // U+0061: 1em, (   0, 0) - (1,   1)
+    // U+0062: 1em, (   0, 0) - (1.5, 1)
+    // U+0063: 1em, (   0, 0) - (2,   1)
+    // U+0064: 1em, (   0, 0) - (2.5, 1)
+    // U+0065: 1em, (-0.5, 0) - (1,   1)
+    // U+0066: 1em, (-1.0, 0) - (1,   1)
+    // U+0067: 1em, (-1.5, 0) - (1,   1)
+    auto fc = makeFontCollection({"OvershootTest.ttf"});
+    {
+        auto [layout, bounds] = buildLayoutAndBounds("a", fc);
+        EXPECT_EQ(1u, layout.glyphCount());
+        EXPECT_EQ(MinikinRect(0, 10, 10, 0), bounds);
+    }
+    {
+        auto [layout, bounds] = buildLayoutAndBounds("b", fc);
+        EXPECT_EQ(1u, layout.glyphCount());
+        EXPECT_EQ(MinikinRect(0, 10, 15, 0), bounds);
+    }
+    {
+        auto [layout, bounds] = buildLayoutAndBounds("c", fc);
+        EXPECT_EQ(1u, layout.glyphCount());
+        EXPECT_EQ(MinikinRect(0, 10, 20, 0), bounds);
+    }
+    {
+        auto [layout, bounds] = buildLayoutAndBounds("d", fc);
+        EXPECT_EQ(1u, layout.glyphCount());
+        EXPECT_EQ(MinikinRect(0, 10, 25, 0), bounds);
+    }
+    {
+        auto [layout, bounds] = buildLayoutAndBounds("e", fc);
+        EXPECT_EQ(1u, layout.glyphCount());
+        EXPECT_EQ(MinikinRect(-5, 10, 10, 0), bounds);
+    }
+    {
+        auto [layout, bounds] = buildLayoutAndBounds("f", fc);
+        EXPECT_EQ(1u, layout.glyphCount());
+        EXPECT_EQ(MinikinRect(-10, 10, 10, 0), bounds);
+    }
+    {
+        auto [layout, bounds] = buildLayoutAndBounds("g", fc);
+        EXPECT_EQ(1u, layout.glyphCount());
+        EXPECT_EQ(MinikinRect(-15, 10, 10, 0), bounds);
+    }
+    {
+        auto [layout, bounds] = buildLayoutAndBounds("ag", fc);
+        EXPECT_EQ(2u, layout.glyphCount());
+        EXPECT_EQ(MinikinRect(-5, 10, 20, 0), bounds);
+    }
+    {
+        auto [layout, bounds] = buildLayoutAndBounds("ga", fc);
+        EXPECT_EQ(2u, layout.glyphCount());
+        EXPECT_EQ(MinikinRect(-15, 10, 20, 0), bounds);
+    }
+    {
+        auto [layout, bounds] = buildLayoutAndBounds("dg", fc);
+        EXPECT_EQ(2u, layout.glyphCount());
+        EXPECT_EQ(MinikinRect(-5, 10, 25, 0), bounds);
     }
 }
 

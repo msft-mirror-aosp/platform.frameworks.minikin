@@ -28,7 +28,6 @@ cc_library {
     host_supported: true,
     srcs: [
         "BidiUtils.cpp",
-        "BoundsCache.cpp",
         "CmapCoverage.cpp",
         "Emoji.cpp",
         "Font.cpp",
@@ -50,8 +49,10 @@ cc_library {
         "LocaleListCache.cpp",
         "MeasuredText.cpp",
         "Measurement.cpp",
+        "MinikinFontFactory.cpp",
         "MinikinInternal.cpp",
         "OptimalLineBreaker.cpp",
+        "ScriptUtils.cpp",
         "SparseBitSet.cpp",
         "SystemFonts.cpp",
         "WordBreaker.cpp",
@@ -67,12 +68,16 @@ cc_library {
     product_variables: {
         debuggable: {
             // Enable assertion on eng and userdebug build.
-            cppflags: ["-DENABLE_ASSERTION"],
+            srcs: [
+                "Debug.cpp",
+            ],
+            cppflags: [ "-DENABLE_ASSERTION" ],
         },
     },
     shared_libs: [
         "liblog",
         "libharfbuzz_ng",
+        "libcutils",
     ],
     header_libs: [
         "libbase_headers",
@@ -85,6 +90,7 @@ cc_library {
         android: {
             shared_libs: [
                 "libicu",
+                "aconfig_text_flags_c_lib",
             ],
             export_shared_lib_headers: [
                 "libicu",

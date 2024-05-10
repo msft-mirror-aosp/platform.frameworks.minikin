@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-#include "minikin/FontCollection.h"
-
 #include <gtest/gtest.h>
 
 #include "FontTestUtils.h"
 #include "FreeTypeMinikinFontForTest.h"
 #include "MinikinInternal.h"
+#include "minikin/Constants.h"
+#include "minikin/FontCollection.h"
 
 namespace minikin {
 
@@ -139,7 +139,7 @@ TEST(FontCollectionTest, createWithVariations) {
     }
     {
         // New instance should be used for supported variation.
-        std::vector<FontVariation> variations = {{MinikinFont::MakeTag('w', 'd', 't', 'h'), 1.0f}};
+        std::vector<FontVariation> variations = {{MakeTag('w', 'd', 't', 'h'), 1.0f}};
         std::shared_ptr<FontCollection> newFc(
                 multiAxisFc->createCollectionWithVariation(variations));
         EXPECT_NE(nullptr, newFc.get());
@@ -149,8 +149,8 @@ TEST(FontCollectionTest, createWithVariations) {
     }
     {
         // New instance should be used for supported variation (multiple variations case).
-        std::vector<FontVariation> variations = {{MinikinFont::MakeTag('w', 'd', 't', 'h'), 1.0f},
-                                                 {MinikinFont::MakeTag('w', 'g', 'h', 't'), 1.0f}};
+        std::vector<FontVariation> variations = {{MakeTag('w', 'd', 't', 'h'), 1.0f},
+                                                 {MakeTag('w', 'g', 'h', 't'), 1.0f}};
         std::shared_ptr<FontCollection> newFc(
                 multiAxisFc->createCollectionWithVariation(variations));
         EXPECT_NE(nullptr, newFc.get());
@@ -160,14 +160,14 @@ TEST(FontCollectionTest, createWithVariations) {
     }
     {
         // Do not ceate new instance if none of variations are supported.
-        std::vector<FontVariation> variations = {{MinikinFont::MakeTag('Z', 'Z', 'Z', 'Z'), 1.0f}};
+        std::vector<FontVariation> variations = {{MakeTag('Z', 'Z', 'Z', 'Z'), 1.0f}};
         EXPECT_EQ(nullptr, multiAxisFc->createCollectionWithVariation(variations));
         EXPECT_EQ(nullptr, noAxisFc->createCollectionWithVariation(variations));
     }
     {
         // At least one axis is supported, should create new instance.
-        std::vector<FontVariation> variations = {{MinikinFont::MakeTag('w', 'd', 't', 'h'), 1.0f},
-                                                 {MinikinFont::MakeTag('Z', 'Z', 'Z', 'Z'), 1.0f}};
+        std::vector<FontVariation> variations = {{MakeTag('w', 'd', 't', 'h'), 1.0f},
+                                                 {MakeTag('Z', 'Z', 'Z', 'Z'), 1.0f}};
         std::shared_ptr<FontCollection> newFc(
                 multiAxisFc->createCollectionWithVariation(variations));
         EXPECT_NE(nullptr, newFc.get());
@@ -177,25 +177,40 @@ TEST(FontCollectionTest, createWithVariations) {
     }
 }
 
+TEST(FontCollectionTest, createCollectionWithFamilies) {
+    auto fallback = buildFontCollectionFromXml(kEmojiXmlFile);
+    std::shared_ptr<FontFamily> family = buildFontFamily(kVsTestFont);
+    std::shared_ptr<FontCollection> created = fallback->createCollectionWithFamilies({family});
+    ASSERT_EQ(fallback->getFamilyCount() + 1, created->getFamilyCount());
+    EXPECT_EQ(family, created->getFamilyAt(0));
+    for (size_t i = 0; i < fallback->getFamilyCount(); i++) {
+        EXPECT_EQ(fallback->getFamilyAt(i), created->getFamilyAt(i + 1));
+    }
+}
+
 std::vector<uint8_t> writeToBuffer(
         const std::vector<std::shared_ptr<FontCollection>>& collections) {
     BufferWriter fakeWriter(nullptr);
-    FontCollection::writeVector<writeFreeTypeMinikinFontForTest>(&fakeWriter, collections);
+    FontCollection::writeVector(&fakeWriter, collections);
     std::vector<uint8_t> buffer(fakeWriter.size());
     BufferWriter writer(buffer.data());
-    FontCollection::writeVector<writeFreeTypeMinikinFontForTest>(&writer, collections);
+    FontCollection::writeVector(&writer, collections);
     return buffer;
 }
 
 TEST(FontCollectionTest, bufferTest) {
+    FreeTypeMinikinFontForTestFactory::init();
     {
         std::vector<std::shared_ptr<FontCollection>> original({buildFontCollection(kVsTestFont)});
         std::vector<uint8_t> buffer = writeToBuffer(original);
         BufferReader reader(buffer.data());
-        auto copied = FontCollection::readVector<readFreeTypeMinikinFontForTest>(&reader);
+        auto copied = FontCollection::readVector(&reader);
         EXPECT_EQ(1u, copied.size());
         expectVSGlyphsForVsTestFont(copied[0].get());
-        EXPECT_EQ(original[0]->getSupportedTags(), copied[0]->getSupportedTags());
+        ASSERT_EQ(original[0]->getSupportedAxesCount(), copied[0]->getSupportedAxesCount());
+        for (size_t i = 0; i < original[0]->getSupportedAxesCount(); i++) {
+            EXPECT_EQ(original[0]->getSupportedAxisAt(i), copied[0]->getSupportedAxisAt(i));
+        }
         // Id will be different.
         EXPECT_NE(original[0]->getId(), copied[0]->getId());
         std::vector<uint8_t> newBuffer = writeToBuffer(copied);
@@ -204,14 +219,14 @@ TEST(FontCollectionTest, bufferTest) {
     {
         // Test that FontFamily instances are shared.
         std::vector<std::shared_ptr<FontFamily>> families = {buildFontFamily(kVsTestFont)};
-        auto fc1 = std::make_shared<FontCollection>(families);
-        auto fc2 = std::make_shared<FontCollection>(families);
+        auto fc1 = FontCollection::create(families);
+        auto fc2 = FontCollection::create(families);
         std::vector<std::shared_ptr<FontCollection>> original({fc1, fc2});
         std::vector<uint8_t> buffer = writeToBuffer(original);
         BufferReader reader(buffer.data());
-        auto copied = FontCollection::readVector<readFreeTypeMinikinFontForTest>(&reader);
+        auto copied = FontCollection::readVector(&reader);
         EXPECT_EQ(2u, copied.size());
-        EXPECT_EQ(copied[0]->mFamilies[0], copied[1]->mFamilies[0]);
+        EXPECT_EQ(copied[0]->getFamilyAt(0), copied[1]->getFamilyAt(0));
         std::vector<uint8_t> newBuffer = writeToBuffer(copied);
         EXPECT_EQ(buffer, newBuffer);
     }
@@ -223,12 +238,12 @@ TEST(FontCollectionTest, bufferTest) {
                 {buildFontCollection(kMultiAxisFont)});
         std::vector<uint8_t> buffer = writeToBuffer(original);
         BufferReader reader(buffer.data());
-        auto copied = FontCollection::readVector<readFreeTypeMinikinFontForTest>(&reader);
+        auto copied = FontCollection::readVector(&reader);
         EXPECT_EQ(1u, copied.size());
-        EXPECT_EQ(1u,
-                  copied[0]->getSupportedTags().count(MinikinFont::MakeTag('w', 'd', 't', 'h')));
-        EXPECT_EQ(1u,
-                  copied[0]->getSupportedTags().count(MinikinFont::MakeTag('w', 'g', 'h', 't')));
+        ASSERT_EQ(2u, copied[0]->getSupportedAxesCount());
+        // mSupportedAxes must be sorted.
+        EXPECT_EQ(MakeTag('w', 'd', 't', 'h'), copied[0]->getSupportedAxisAt(0));
+        EXPECT_EQ(MakeTag('w', 'g', 'h', 't'), copied[0]->getSupportedAxisAt(1));
         std::vector<uint8_t> newBuffer = writeToBuffer(copied);
         EXPECT_EQ(buffer, newBuffer);
     }
