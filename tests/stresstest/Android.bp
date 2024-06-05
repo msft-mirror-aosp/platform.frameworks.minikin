@@ -15,6 +15,7 @@
 // see how_to_run.txt for instructions on running these tests
 
 package {
+    default_team: "trendy_team_android_text",
     default_applicable_licenses: ["Android-Apache-2.0"],
 }
 
@@ -28,6 +29,7 @@ cc_test {
         "libminikin-tests-util",
         "libminikin",
         "libxml2",
+        "aconfig_text_flags_c_lib",
     ],
 
     // Shared libraries which are dependencies of minikin; these are not automatically
@@ -40,12 +42,18 @@ cc_test {
         "liblog",
         "libutils",
         "libz",
+        "libcutils",
+        "aconfig_text_flags_c_lib",
+        "server_configurable_flags",
     ],
 
     srcs: [
-	"FontFamilyTest.cpp",
+        "FontFamilyTest.cpp",
         "MultithreadTest.cpp",
     ],
 
-    defaults: ["libminikin_defaults"],
+    defaults: [
+        "aconfig_lib_cc_static_link.defaults",
+        "libminikin_defaults",
+    ],
 }

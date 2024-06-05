@@ -21,8 +21,8 @@
 
 #include "BidiUtils.h"
 #include "LayoutSplitter.h"
-#include "minikin/BoundsCache.h"
 #include "minikin/GraphemeBreak.h"
+#include "minikin/LayoutCache.h"
 
 namespace {
 bool isAsciiOrBidiControlCharacter(uint16_t c) {
@@ -156,7 +156,8 @@ size_t getOffsetForAdvance(const float* advances, const uint16_t* buf, size_t st
                            float advance) {
     float x = 0.0f, xLastClusterStart = 0.0f, xSearchStart = 0.0f;
     size_t lastClusterStart = start, searchStart = start;
-    for (size_t i = start; i < start + count; i++) {
+    size_t max = start + count;
+    for (size_t i = start; i < max; i++) {
         if (GraphemeBreak::isGraphemeBreak(advances, buf, start, count, i)) {
             searchStart = lastClusterStart;
             xSearchStart = xLastClusterStart;
@@ -173,10 +174,10 @@ size_t getOffsetForAdvance(const float* advances, const uint16_t* buf, size_t st
     }
     size_t best = searchStart;
     float bestDist = FLT_MAX;
-    for (size_t i = searchStart; i <= start + count; i++) {
+    for (size_t i = searchStart; i <= max; i++) {
         if (GraphemeBreak::isGraphemeBreak(advances, buf, start, count, i)) {
             // "getRunAdvance(layout, buf, start, count, i) - advance" but more efficient
-            float delta = getRunAdvance(advances, buf, start, searchStart, count - searchStart, i)
+            float delta = getRunAdvance(advances, buf, start, searchStart, max - searchStart, i)
 
                           + xSearchStart - advance;
             if (std::abs(delta) < bestDist) {
@@ -194,11 +195,10 @@ size_t getOffsetForAdvance(const float* advances, const uint16_t* buf, size_t st
 struct BoundsComposer {
     BoundsComposer() : mAdvance(0) {}
 
-    void operator()(const MinikinRect& rect, float advance) {
-        MinikinRect tmp = rect;
-        tmp.offset(mAdvance, 0);
-        mBounds.join(tmp);
-        mAdvance += advance;
+    void operator()(const LayoutPiece& layoutPiece, const MinikinPaint& /* paint */,
+                    const MinikinRect& bounds) {
+        mBounds.join(bounds, mAdvance, 0);
+        mAdvance += layoutPiece.advance();
     }
 
     float mAdvance;
@@ -215,9 +215,9 @@ void getBounds(const U16StringPiece& str, const Range& range, Bidi bidiFlag,
                     (piece.getStart() == range.getStart()) ? startHyphen : StartHyphenEdit::NO_EDIT;
             const EndHyphenEdit pieceEndHyphen =
                     (piece.getEnd() == range.getEnd()) ? endHyphen : EndHyphenEdit::NO_EDIT;
-            BoundsCache::getInstance().getOrCreate(str.substr(context), piece - context.getStart(),
-                                                   paint, info.isRtl, pieceStartHyphen,
-                                                   pieceEndHyphen, bc);
+            LayoutCache::getInstance().getOrCreate(
+                    str.substr(context), piece - context.getStart(), paint, info.isRtl,
+                    pieceStartHyphen, pieceEndHyphen, true /* bounds calculation */, bc);
             // Increment word spacing for spacer
             if (piece.getLength() == 1 && isWordSpace(str[piece.getStart()])) {
                 bc.mAdvance += paint.wordSpacing;
@@ -230,7 +230,7 @@ void getBounds(const U16StringPiece& str, const Range& range, Bidi bidiFlag,
 struct ExtentComposer {
     ExtentComposer() {}
 
-    void operator()(const LayoutPiece& layoutPiece, const MinikinPaint&) {
+    void operator()(const LayoutPiece& layoutPiece, const MinikinPaint&, const MinikinRect&) {
         extent.extendBy(layoutPiece.extent());
     }
 
@@ -242,9 +242,10 @@ MinikinExtent getFontExtent(const U16StringPiece& textBuf, const Range& range, B
     ExtentComposer composer;
     for (const BidiText::RunInfo info : BidiText(textBuf, range, bidiFlag)) {
         for (const auto [context, piece] : LayoutSplitter(textBuf, info.range, info.isRtl)) {
-            LayoutCache::getInstance().getOrCreate(
-                    textBuf.substr(context), piece - context.getStart(), paint, info.isRtl,
-                    StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, composer);
+            LayoutCache::getInstance().getOrCreate(textBuf.substr(context),
+                                                   piece - context.getStart(), paint, info.isRtl,
+                                                   StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT,
+                                                   false /* bounds calculation */, composer);
         }
     }
     return composer.extent;

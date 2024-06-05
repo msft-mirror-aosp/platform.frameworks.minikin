@@ -15,13 +15,17 @@
 //
 
 package {
+    default_team: "trendy_team_java_core_libraries",
     default_applicable_licenses: ["Android-Apache-2.0"],
 }
 
 cc_benchmark {
     name: "minikin_perftests",
     test_suites: ["device-tests"],
-    defaults: ["libminikin_defaults"],
+    defaults: [
+        "aconfig_lib_cc_static_link.defaults",
+        "libminikin_defaults",
+    ],
     srcs: [
         "FontCollection.cpp",
         "FontLanguage.cpp",
@@ -37,6 +41,7 @@ cc_benchmark {
         "libminikin-tests-util",
         "libminikin",
         "libxml2",
+        "aconfig_text_flags_c_lib",
     ],
 
     shared_libs: [
@@ -44,6 +49,8 @@ cc_benchmark {
         "libharfbuzz_ng",
         "libicu",
         "liblog",
-
+        "libcutils",
+        "aconfig_text_flags_c_lib",
+        "server_configurable_flags",
     ],
 }
