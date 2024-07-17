@@ -122,7 +122,7 @@ inline bool isInsertion(EndHyphenEdit hyph) {
 }
 
 template <typename T, size_t size>
-constexpr size_t ARRAYSIZE(T const (&)[size]) {
+constexpr size_t ARRAY_SIZE(T const (&)[size]) {
     return size;
 }
 constexpr uint16_t HYPHEN_STR_ZWJ[] = {CHAR_ZWJ};
@@ -132,7 +132,7 @@ constexpr uint16_t HYPHEN_STR_MAQAF[] = {CHAR_MAQAF};
 constexpr uint16_t HYPHEN_STR_UCAS_HYPHEN[] = {CHAR_UCAS_HYPHEN};
 constexpr uint16_t HYPHEN_STR_ZWJ_AND_HYPHEN[] = {CHAR_ZWJ, CHAR_HYPHEN};
 constexpr std::pair<const uint16_t*, size_t> EMPTY_HYPHEN_STR(nullptr, 0);
-#define MAKE_HYPHEN_STR(chars) std::make_pair((chars), ARRAYSIZE(chars))
+#define MAKE_HYPHEN_STR(chars) std::make_pair((chars), ARRAY_SIZE(chars))
 
 inline std::pair<const uint16_t*, size_t> getHyphenString(StartHyphenEdit hyph) {
     if (hyph == StartHyphenEdit::INSERT_ZWJ) {
@@ -180,7 +180,7 @@ public:
     //
     // Example: word is "hyphen", result is the following, corresponding to "hy-phen":
     // [DONT_BREAK, DONT_BREAK, BREAK_AND_INSERT_HYPHEN, DONT_BREAK, DONT_BREAK, DONT_BREAK]
-    void hyphenate(const U16StringPiece& word, HyphenationType* out) const;
+    virtual void hyphenate(const U16StringPiece& word, HyphenationType* out) const = 0;
 
     // Compute the hyphenation of a word.
     //
@@ -202,20 +202,54 @@ public:
     // This class doesn't copy or take ownership of patternData. Caller must keep the data valid
     // until this instance is deleted.
     // Note: nullptr is valid input, in which case the hyphenator only processes soft hyphens.
-    static Hyphenator* loadBinary(const uint8_t* patternData, size_t minPrefix, size_t minSuffix,
-                                  const std::string& locale);
+    static Hyphenator* loadBinary(const uint8_t* patternData, size_t dataSize, size_t minPrefix,
+                                  size_t minSuffix, const std::string& locale);
 
-private:
+    // This is test only function for loading Rust implementation.
+    static Hyphenator* loadBinaryForRust(const uint8_t* patternData, size_t dataSize,
+                                         size_t minPrefix, size_t minSuffix,
+                                         const std::string& locale);
+    virtual ~Hyphenator() {}
+
+protected:
     enum class HyphenationLocale : uint8_t {
         OTHER = 0,
         CATALAN = 1,
         POLISH = 2,
         SLOVENIAN = 3,
     };
+};
 
+class HyphenatorCXX : public Hyphenator {
+public:
+    // Compute the hyphenation of a word, storing the hyphenation in result vector. Each entry in
+    // the vector is a "hyphenation type" for a potential hyphenation that can be applied at the
+    // corresponding code unit offset in the word.
+    //
+    // out must have at least the length of the word capacity.
+    //
+    // Example: word is "hyphen", result is the following, corresponding to "hy-phen":
+    // [DONT_BREAK, DONT_BREAK, BREAK_AND_INSERT_HYPHEN, DONT_BREAK, DONT_BREAK, DONT_BREAK]
+    virtual void hyphenate(const U16StringPiece& word, HyphenationType* out) const override;
+
+    // Compute the hyphenation of a word.
+    //
+    // out will be resized to word length.
+    void hyphenate(const U16StringPiece& word, std::vector<HyphenationType>* out) const {
+        out->resize(word.size());
+        return hyphenate(word, out->data());
+    }
+
+    // This class doesn't copy or take ownership of patternData. Caller must keep the data valid
+    // until this instance is deleted.
+    // Note: nullptr is valid input, in which case the hyphenator only processes soft hyphens.
+    static Hyphenator* loadBinary(const uint8_t* patternData, size_t dataSize, size_t minPrefix,
+                                  size_t minSuffix, const std::string& locale);
+
+private:
     // Use Hyphenator::loadBinary instead.
-    Hyphenator(const uint8_t* patternData, size_t minPrefix, size_t minSuffix,
-               HyphenationLocale hyphenLocale);
+    HyphenatorCXX(const uint8_t* patternData, size_t minPrefix, size_t minSuffix,
+                  HyphenationLocale hyphenLocale);
 
     // apply various hyphenation rules including hard and soft hyphens, ignoring patterns
     void hyphenateWithNoPatterns(const U16StringPiece& word, HyphenationType* out) const;
