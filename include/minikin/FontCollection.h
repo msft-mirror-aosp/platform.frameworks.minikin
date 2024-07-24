@@ -18,15 +18,19 @@
 #define MINIKIN_FONT_COLLECTION_H
 
 #include <gtest/gtest_prod.h>
+#include <utils/LruCache.h>
 
 #include <functional>
 #include <memory>
+#include <mutex>
 #include <unordered_map>
 #include <vector>
 
 #include "minikin/Buffer.h"
 #include "minikin/Font.h"
 #include "minikin/FontFamily.h"
+#include "minikin/Hasher.h"
+#include "minikin/MinikinExtent.h"
 #include "minikin/MinikinFont.h"
 #include "minikin/U16StringPiece.h"
 
@@ -34,6 +38,21 @@ namespace minikin {
 
 // The maximum number of font families.
 constexpr uint32_t MAX_FAMILY_COUNT = 254;
+
+struct LocaleExtentKey {
+    uint32_t localeId;
+    float textSize;
+
+    bool operator==(const LocaleExtentKey& o) const {
+        return localeId == o.localeId && textSize == o.textSize;
+    }
+};
+
+inline android::hash_t hash_type(const LocaleExtentKey& key) {
+    return Hasher().update(key.localeId).update(key.textSize).hash();
+}
+
+class LocaleList;
 
 class FontCollection {
 public:
@@ -148,6 +167,8 @@ public:
         return itemize(text, style, localeListId, familyVariant, text.size());
     }
 
+    MinikinExtent getReferenceExtentForLocale(const MinikinPaint& paint) const;
+
     // Returns true if there is a glyph for the code point and variation selector pair.
     // Returns false if no fonts have a glyph for the code point and variation
     // selector pair, or invalid variation selector is passed.
@@ -224,6 +245,9 @@ private:
 
     bool isPrimaryFamily(const std::shared_ptr<FontFamily>& fontFamily) const;
 
+    void filterFamilyByLocale(const LocaleList& localeList,
+                              const std::function<void(const FontFamily& family)>& callback) const;
+
     static uint32_t calcLocaleMatchingScore(uint32_t userLocaleListId,
                                             const FontFamily& fontFamily);
 
@@ -273,6 +297,11 @@ private:
     // nullptr.
     std::unique_ptr<Range[]> mOwnedRanges;
     std::vector<uint8_t> mOwnedFamilyVec;
+
+    // Pair of locale ID and text size.
+    mutable std::mutex mMutex;
+    mutable android::LruCache<LocaleExtentKey, MinikinExtent> mExtentCacheForLocale
+            GUARDED_BY(mMutex){8};
 };
 
 }  // namespace minikin

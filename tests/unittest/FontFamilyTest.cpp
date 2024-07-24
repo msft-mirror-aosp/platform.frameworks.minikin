@@ -22,6 +22,7 @@
 #include "FreeTypeMinikinFontForTest.h"
 #include "LocaleListCache.h"
 #include "MinikinInternal.h"
+#include "minikin/Constants.h"
 #include "minikin/FontFamily.h"
 #include "minikin/LocaleList.h"
 
@@ -631,6 +632,53 @@ TEST_F(FontFamilyTest, hasVSTableTest) {
     }
 }
 
+TEST_F(FontFamilyTest, createFamilyWithVariationCtorTest) {
+    // This font has 'wdth' and 'wght' axes.
+    const char kMultiAxisFont[] = "MultiAxis.ttf";
+    const char kNoAxisFont[] = "Regular.ttf";
+
+    std::shared_ptr<FontFamily> multiAxisFamily = buildFontFamily(kMultiAxisFont);
+    std::shared_ptr<FontFamily> noAxisFamily = buildFontFamily(kNoAxisFont);
+
+    {
+        // Do not ceate new instance if none of variations are specified.
+        EXPECT_EQ(nullptr, FontFamily::create(multiAxisFamily, std::vector<FontVariation>()));
+        EXPECT_EQ(nullptr, FontFamily::create(noAxisFamily, std::vector<FontVariation>()));
+    }
+    {
+        // New instance should be used for supported variation.
+        std::vector<FontVariation> variations = {{MakeTag('w', 'd', 't', 'h'), 1.0f}};
+        std::shared_ptr<FontFamily> newFamily = FontFamily::create(multiAxisFamily, variations);
+        EXPECT_NE(nullptr, newFamily.get());
+        EXPECT_NE(multiAxisFamily.get(), newFamily.get());
+        EXPECT_EQ(nullptr, FontFamily::create(noAxisFamily, variations));
+    }
+    {
+        // New instance should be used for supported variation. (multiple variations case)
+        std::vector<FontVariation> variations = {{MakeTag('w', 'd', 't', 'h'), 1.0f},
+                                                 {MakeTag('w', 'g', 'h', 't'), 1.0f}};
+        std::shared_ptr<FontFamily> newFamily = FontFamily::create(multiAxisFamily, variations);
+        EXPECT_NE(nullptr, newFamily.get());
+        EXPECT_NE(multiAxisFamily.get(), newFamily.get());
+        EXPECT_EQ(nullptr, FontFamily::create(noAxisFamily, variations));
+    }
+    {
+        // Do not ceate new instance if none of variations are supported.
+        std::vector<FontVariation> variations = {{MakeTag('Z', 'Z', 'Z', 'Z'), 1.0f}};
+        EXPECT_EQ(nullptr, FontFamily::create(multiAxisFamily, variations));
+        EXPECT_EQ(nullptr, FontFamily::create(noAxisFamily, variations));
+    }
+    {
+        // At least one axis is supported, should create new instance.
+        std::vector<FontVariation> variations = {{MakeTag('w', 'd', 't', 'h'), 1.0f},
+                                                 {MakeTag('Z', 'Z', 'Z', 'Z'), 1.0f}};
+        std::shared_ptr<FontFamily> newFamily = FontFamily::create(multiAxisFamily, variations);
+        EXPECT_NE(nullptr, newFamily.get());
+        EXPECT_NE(multiAxisFamily.get(), newFamily.get());
+        EXPECT_EQ(nullptr, FontFamily::create(noAxisFamily, variations));
+    }
+}
+
 TEST_F(FontFamilyTest, createFamilyWithVariationTest) {
     // This font has 'wdth' and 'wght' axes.
     const char kMultiAxisFont[] = "MultiAxis.ttf";
@@ -647,7 +695,7 @@ TEST_F(FontFamilyTest, createFamilyWithVariationTest) {
     }
     {
         // New instance should be used for supported variation.
-        std::vector<FontVariation> variations = {{MinikinFont::MakeTag('w', 'd', 't', 'h'), 1.0f}};
+        std::vector<FontVariation> variations = {{MakeTag('w', 'd', 't', 'h'), 1.0f}};
         std::shared_ptr<FontFamily> newFamily(
                 multiAxisFamily->createFamilyWithVariation(variations));
         EXPECT_NE(nullptr, newFamily.get());
@@ -656,8 +704,8 @@ TEST_F(FontFamilyTest, createFamilyWithVariationTest) {
     }
     {
         // New instance should be used for supported variation. (multiple variations case)
-        std::vector<FontVariation> variations = {{MinikinFont::MakeTag('w', 'd', 't', 'h'), 1.0f},
-                                                 {MinikinFont::MakeTag('w', 'g', 'h', 't'), 1.0f}};
+        std::vector<FontVariation> variations = {{MakeTag('w', 'd', 't', 'h'), 1.0f},
+                                                 {MakeTag('w', 'g', 'h', 't'), 1.0f}};
         std::shared_ptr<FontFamily> newFamily(
                 multiAxisFamily->createFamilyWithVariation(variations));
         EXPECT_NE(nullptr, newFamily.get());
@@ -666,14 +714,14 @@ TEST_F(FontFamilyTest, createFamilyWithVariationTest) {
     }
     {
         // Do not ceate new instance if none of variations are supported.
-        std::vector<FontVariation> variations = {{MinikinFont::MakeTag('Z', 'Z', 'Z', 'Z'), 1.0f}};
+        std::vector<FontVariation> variations = {{MakeTag('Z', 'Z', 'Z', 'Z'), 1.0f}};
         EXPECT_EQ(nullptr, multiAxisFamily->createFamilyWithVariation(variations));
         EXPECT_EQ(nullptr, noAxisFamily->createFamilyWithVariation(variations));
     }
     {
         // At least one axis is supported, should create new instance.
-        std::vector<FontVariation> variations = {{MinikinFont::MakeTag('w', 'd', 't', 'h'), 1.0f},
-                                                 {MinikinFont::MakeTag('Z', 'Z', 'Z', 'Z'), 1.0f}};
+        std::vector<FontVariation> variations = {{MakeTag('w', 'd', 't', 'h'), 1.0f},
+                                                 {MakeTag('Z', 'Z', 'Z', 'Z'), 1.0f}};
         std::shared_ptr<FontFamily> newFamily(
                 multiAxisFamily->createFamilyWithVariation(variations));
         EXPECT_NE(nullptr, newFamily.get());
@@ -705,6 +753,19 @@ TEST_F(FontFamilyTest, coverageTableSelectionTest) {
     EXPECT_TRUE(unicodeEnc4Font->hasGlyph(0x0061, 0));
 
     EXPECT_TRUE(unicodeEnc4Font->hasGlyph(0x1F926, 0));
+}
+
+TEST_F(FontFamilyTest, childCoverageTest) {
+    // MultiAxis.ttf only supports U+0061.
+    std::shared_ptr<FontFamily> parentFont = buildFontFamily("MultiAxis.ttf");
+
+    EXPECT_TRUE(parentFont->hasGlyph(0x0061, 0));
+
+    std::shared_ptr<FontFamily> childFont = FontFamily::create(
+            parentFont, std::vector<FontVariation>{FontVariation(MakeTag('w', 'g', 'h', 't'), 0)});
+
+    EXPECT_NE(nullptr, childFont.get());
+    EXPECT_TRUE(childFont->hasGlyph(0x0061, 0));
 }
 
 const char* slantToString(FontStyle::Slant slant) {
@@ -805,7 +866,7 @@ TEST_F(FontFamilyTest, closestMatch) {
 
         size_t idx = dummyFonts.size();
         for (size_t i = 0; i < dummyFonts.size(); i++) {
-            if (dummyFonts[i].get() == closest.font->typeface().get()) {
+            if (dummyFonts[i].get() == closest.font->baseTypeface().get()) {
                 idx = i;
                 break;
             }
