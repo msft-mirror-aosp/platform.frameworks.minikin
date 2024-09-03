@@ -26,6 +26,8 @@ namespace minikin {
 typedef uint32_t AxisTag;
 
 struct FontVariation {
+    FontVariation() = default;
+    FontVariation(AxisTag axisTag, float value) : axisTag(axisTag), value(value) {}
     AxisTag axisTag;
     float value;
 };
