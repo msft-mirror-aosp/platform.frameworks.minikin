@@ -302,6 +302,9 @@ bool GreedyLineBreaker::doLineBreakWithGraphemeBounds(const Range& range) {
 }
 
 bool GreedyLineBreaker::doLineBreakWithFallback(const Range& range) {
+    if (!features::phrase_strict_fallback()) {
+        return false;
+    }
     Run* targetRun = nullptr;
     for (const auto& run : mMeasuredText.runs) {
         if (run->getRange().contains(range)) {
