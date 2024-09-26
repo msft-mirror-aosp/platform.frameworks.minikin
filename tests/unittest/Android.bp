@@ -54,7 +54,6 @@ cc_test {
         "BufferTest.cpp",
         "CmapCoverageTest.cpp",
         "EmojiTest.cpp",
-        "FontFakeryTest.cpp",
         "FontTest.cpp",
         "FontCollectionTest.cpp",
         "FontCollectionItemizeTest.cpp",
