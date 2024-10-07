@@ -180,7 +180,7 @@ public:
     // Creates new FontCollection based on this collection while applying font variations. Returns
     // nullptr if none of variations apply to this collection.
     std::shared_ptr<FontCollection> createCollectionWithVariation(
-            const std::vector<FontVariation>& variations);
+            const VariationSettings& variations);
     // Creates new FontCollection that uses the specified families as top families and
     // families from this FontCollection as fallback.
     std::shared_ptr<FontCollection> createCollectionWithFamilies(
@@ -246,7 +246,7 @@ private:
     bool isPrimaryFamily(const std::shared_ptr<FontFamily>& fontFamily) const;
 
     void filterFamilyByLocale(const LocaleList& localeList,
-                              const std::function<void(const FontFamily& family)>& callback) const;
+                              const std::function<bool(const FontFamily& family)>& callback) const;
 
     static uint32_t calcLocaleMatchingScore(uint32_t userLocaleListId,
                                             const FontFamily& fontFamily);

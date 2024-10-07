@@ -133,13 +133,22 @@ public:
     const Font* getFont(int i) const { return mGlyphs[i].font.font.get(); }
     const std::shared_ptr<Font>& getFontRef(int i) const { return mGlyphs[i].font.font; }
     FontFakery getFakery(int i) const { return mGlyphs[i].font.fakery; }
-    const std::shared_ptr<MinikinFont>& typeface(int i) const { return mGlyphs[i].font.typeface(); }
+    std::shared_ptr<MinikinFont> typeface(int i) const { return mGlyphs[i].font.typeface(); }
     unsigned int getGlyphId(int i) const { return mGlyphs[i].glyph_id; }
     float getX(int i) const { return mGlyphs[i].x; }
     float getY(int i) const { return mGlyphs[i].y; }
     float getAdvance() const { return mAdvance; }
     float getCharAdvance(size_t i) const { return mAdvances[i]; }
     const std::vector<float>& getAdvances() const { return mAdvances; }
+
+    // Returns number of font runs.
+    uint32_t getFontRunCount() const { return mFonts.size(); }
+    // Returns inclusive start offset of the font run.
+    uint32_t getFontRunStart(uint32_t i) const { return i == 0 ? 0 : mEnds[i - 1]; }
+    // Returns exclusive end offset of the font run.
+    uint32_t getFontRunEnd(uint32_t i) const { return mEnds[i]; }
+    // Returns the font associated to the given run index.
+    const FakedFont& getFontRunFont(uint32_t i) const { return mFonts[i]; }
 
     // Purge all caches, useful in low memory conditions
     static void purgeCaches();
@@ -199,6 +208,8 @@ private:
                      const MinikinPaint& paint, StartHyphenEdit startHyphen,
                      EndHyphenEdit endHyphen, MinikinRect* bounds, uint32_t* clusterCount);
 
+    std::vector<FakedFont> mFonts;
+    std::vector<uint32_t> mEnds;
     std::vector<LayoutGlyph> mGlyphs;
 
     // This vector defined per code unit, so their length is identical to the input text.

@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-#define LOG_TAG "Minikin"
-
 #include "minikin/FontFamily.h"
 
 #include <log/log.h>
@@ -66,7 +64,7 @@ std::shared_ptr<FontFamily> FontFamily::create(uint32_t localeListId, FamilyVari
 }
 
 std::shared_ptr<FontFamily> FontFamily::create(const std::shared_ptr<FontFamily>& parent,
-                                               const std::vector<FontVariation>& axes) {
+                                               const VariationSettings& axes) {
     if (axes.empty() || parent->getSupportedAxesCount() == 0) {
         return nullptr;
     }
@@ -89,7 +87,7 @@ std::shared_ptr<FontFamily> FontFamily::create(const std::shared_ptr<FontFamily>
 }
 
 FontFamily::FontFamily(const std::shared_ptr<FontFamily>& parent,
-                       const std::vector<FontVariation>& axesOverride)
+                       const VariationSettings& axesOverride)
         : mFonts(),
           mSupportedAxes(std::make_unique<AxisTag[]>(parent->getSupportedAxesCount())),
           mCoverage(),

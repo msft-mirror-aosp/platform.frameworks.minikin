@@ -76,6 +76,7 @@ cc_library {
         "Emoji.cpp",
         "Font.cpp",
         "FontCollection.cpp",
+        "FontFakery.cpp",
         "FontFamily.cpp",
         "FontFeatureUtils.cpp",
         "FontFileParser.cpp",
@@ -164,7 +165,7 @@ cc_library {
                 "libminikin_cxx_bridge_header",
             ],
         },
-        not_windows: {
+        linux: {
             whole_static_libs: [
                 "libminikin_rust_ffi",
             ],

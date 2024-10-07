@@ -14,11 +14,14 @@
  * limitations under the License.
  */
 
+#include <com_android_text_flags.h>
+#include <flag_macros.h>
 #include <gtest/gtest.h>
 #include <minikin/Constants.h>
 
 #include "BufferUtils.h"
 #include "FontTestUtils.h"
+#include "FontVariationTestUtils.h"
 #include "FreeTypeMinikinFontForTest.h"
 #include "minikin/Font.h"
 
@@ -276,10 +279,10 @@ TEST(FontTest, getAdjustedTypefaceTest) {
         EXPECT_NE(minikinFontBase.get(), font->baseTypeface().get());
         auto axes = minikinFontBase->GetAxes();
         ASSERT_EQ(2u, axes.size());
-        EXPECT_EQ(TAG_wght, axes[0].axisTag);
-        EXPECT_EQ(TAG_ital, axes[1].axisTag);
-        EXPECT_EQ(400, axes[0].value);
-        EXPECT_EQ(1, axes[1].value);
+        EXPECT_EQ(TAG_ital, axes[0].axisTag);
+        EXPECT_EQ(TAG_wght, axes[1].axisTag);
+        EXPECT_EQ(1, axes[0].value);
+        EXPECT_EQ(400, axes[1].value);
     }
     {
         // Override existing ital axis.
@@ -288,10 +291,10 @@ TEST(FontTest, getAdjustedTypefaceTest) {
         EXPECT_NE(minikinFontBase.get(), font->baseTypeface().get());
         auto axes = minikinFontBase->GetAxes();
         ASSERT_EQ(2u, axes.size());
-        EXPECT_EQ(TAG_wght, axes[0].axisTag);
-        EXPECT_EQ(TAG_ital, axes[1].axisTag);
-        EXPECT_EQ(700, axes[0].value);
-        EXPECT_EQ(1, axes[1].value);
+        EXPECT_EQ(TAG_ital, axes[0].axisTag);
+        EXPECT_EQ(TAG_wght, axes[1].axisTag);
+        EXPECT_EQ(1, axes[0].value);
+        EXPECT_EQ(700, axes[1].value);
     }
 }
 
@@ -310,6 +313,71 @@ TEST(FontTest, ChildLazyCreationTest) {
 
     EXPECT_EQ(1u, overridden->baseTypeface()->GetAxes().size());
     EXPECT_EQ(MakeTag('w', 'g', 'h', 't'), overridden->baseTypeface()->GetAxes()[0].axisTag);
+}
+
+TEST(FontTest, FVarTableTest) {
+    FreeTypeMinikinFontForTestFactory::init();
+    auto minikinFont = std::make_shared<FreeTypeMinikinFontForTest>(
+            getTestFontPath("WeightEqualsEmVariableFont.ttf"));
+    std::shared_ptr<Font> font = Font::Builder(minikinFont).build();
+
+    uint32_t wght = MakeTag('w', 'g', 'h', 't');
+    uint32_t ital = MakeTag('i', 't', 'a', 'l');
+
+    const FVarTable& fvar = font->getFVarTable();
+    EXPECT_TRUE(fvar.contains(wght));
+    EXPECT_TRUE(fvar.contains(ital));
+    EXPECT_FALSE(fvar.contains(MakeTag('w', 'd', 't', 'h')));
+
+    const FVarEntry& wghtTable = fvar.find(wght)->second;
+    EXPECT_EQ(0, wghtTable.minValue);
+    EXPECT_EQ(400, wghtTable.defValue);
+    EXPECT_EQ(1000, wghtTable.maxValue);
+
+    const FVarEntry& italTable = fvar.find(ital)->second;
+    EXPECT_EQ(0, italTable.minValue);
+    EXPECT_EQ(0, italTable.defValue);
+    EXPECT_EQ(1, italTable.maxValue);
+}
+
+FakedFont fakedFont(const std::shared_ptr<Font>& font, const std::string& varSettings) {
+    return {font, FontFakery(false, false, parseVariationSettings(varSettings))};
+}
+
+TEST_WITH_FLAGS(FontTest, FakedFont_cached_hbFont,
+                REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(com::android::text::flags,
+                                                    typeface_redesign))) {
+    FreeTypeMinikinFontForTestFactory::init();
+
+    auto minikinFont = std::make_shared<FreeTypeMinikinFontForTest>(
+            getTestFontPath("WeightEqualsEmVariableFont.ttf"));
+    std::shared_ptr<Font> font = Font::Builder(minikinFont).build();
+
+    FakedFont faked300 = fakedFont(font, "'wght' 300");
+    FakedFont faked400 = fakedFont(font, "'wght' 400");
+    FakedFont faked300_2 = fakedFont(font, "'wght' 300");
+
+    EXPECT_EQ(faked300.hbFont().get(), faked300.hbFont().get());
+    EXPECT_EQ(faked300.hbFont().get(), faked300_2.hbFont().get());
+    EXPECT_NE(faked300.hbFont().get(), faked400.hbFont().get());
+}
+
+TEST_WITH_FLAGS(FontTest, FakedFont_cached_typeface,
+                REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(com::android::text::flags,
+                                                    typeface_redesign))) {
+    FreeTypeMinikinFontForTestFactory::init();
+
+    auto minikinFont = std::make_shared<FreeTypeMinikinFontForTest>(
+            getTestFontPath("WeightEqualsEmVariableFont.ttf"));
+    std::shared_ptr<Font> font = Font::Builder(minikinFont).build();
+
+    FakedFont faked300 = fakedFont(font, "'wght' 300");
+    FakedFont faked400 = fakedFont(font, "'wght' 400");
+    FakedFont faked300_2 = fakedFont(font, "'wght' 300");
+
+    EXPECT_EQ(faked300.typeface(), faked300.typeface());
+    EXPECT_EQ(faked300.typeface(), faked300_2.typeface());
+    EXPECT_NE(faked300.typeface(), faked400.typeface());
 }
 
 }  // namespace minikin

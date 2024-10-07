@@ -18,6 +18,9 @@
 #define MINIKIN_FONT_VARIATION_H
 
 #include <cstdint>
+#include <iostream>
+
+#include "minikin/SortedPackedVector.h"
 
 namespace minikin {
 
@@ -29,6 +32,50 @@ struct FontVariation {
     AxisTag axisTag;
     float value;
 };
+
+constexpr bool operator==(const FontVariation& l, const FontVariation& r) {
+    return l.axisTag == r.axisTag && l.value == r.value;
+}
+
+constexpr bool operator!=(const FontVariation& l, const FontVariation& r) {
+    return !(l == r);
+}
+
+constexpr bool operator<(const FontVariation& l, const FontVariation& r) {
+    return l.axisTag < r.axisTag;
+}
+
+constexpr bool operator>(const FontVariation& l, const FontVariation& r) {
+    return l.axisTag > r.axisTag;
+}
+
+constexpr bool operator<=(const FontVariation& l, const FontVariation& r) {
+    return l.axisTag <= r.axisTag;
+}
+
+constexpr bool operator>=(const FontVariation& l, const FontVariation& r) {
+    return l.axisTag >= r.axisTag;
+}
+
+// Immutable variation settings
+using VariationSettings = SortedPackedVector<FontVariation>;
+
+inline std::ostream& operator<<(std::ostream& os, const FontVariation& variation) {
+    return os << "'" << static_cast<char>(variation.axisTag >> 24)
+              << static_cast<char>(variation.axisTag >> 16)
+              << static_cast<char>(variation.axisTag >> 8) << static_cast<char>(variation.axisTag)
+              << "' " << variation.value;
+}
+
+inline std::ostream& operator<<(std::ostream& os, const VariationSettings& varSettings) {
+    for (size_t i = 0; i < varSettings.size(); ++i) {
+        if (i != 0) {
+            os << ", ";
+        }
+        os << varSettings[i];
+    }
+    return os;
+}
 
 }  // namespace minikin
 
