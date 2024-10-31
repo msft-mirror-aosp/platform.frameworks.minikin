@@ -74,6 +74,15 @@ public:
         return *this;
     }
 
+    inline Hasher& update(const VariationSettings& vars) {
+        update(vars.size());
+        for (const FontVariation& var : vars) {
+            update(var.axisTag);
+            update(var.value);
+        }
+        return *this;
+    }
+
     inline Hasher& updateShorts(const uint16_t* data, uint32_t length) {
         update(length);
         uint32_t i;
@@ -126,6 +135,16 @@ public:
         hash += (hash << 15);
         return hash;
     }
+
+#ifdef __APPLE__
+    inline Hasher& update(uintptr_t data) {
+        update(static_cast<uint32_t>(data));
+        if (sizeof(uintptr_t) > sizeof(uint32_t)) {
+            update(static_cast<uint32_t>(data >> 32));
+        }
+        return *this;
+    }
+#endif
 
 private:
     uint32_t mHash;
