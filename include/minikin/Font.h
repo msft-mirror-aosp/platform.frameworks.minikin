@@ -18,6 +18,7 @@
 #define MINIKIN_FONT_H
 
 #include <gtest/gtest_prod.h>
+#include <utils/LruCache.h>
 
 #include <atomic>
 #include <functional>
@@ -28,6 +29,7 @@
 
 #include "minikin/Buffer.h"
 #include "minikin/FVarTable.h"
+#include "minikin/FontFakery.h"
 #include "minikin/FontStyle.h"
 #include "minikin/FontVariation.h"
 #include "minikin/HbUtils.h"
@@ -36,72 +38,6 @@
 #include "minikin/MinikinFont.h"
 
 namespace minikin {
-
-class Font;
-
-// attributes representing transforms (fake bold, fake italic) to match styles
-class FontFakery {
-public:
-    FontFakery() : FontFakery(false, false, -1, -1) {}
-    FontFakery(bool fakeBold, bool fakeItalic) : FontFakery(fakeBold, fakeItalic, -1, -1) {}
-    FontFakery(bool fakeBold, bool fakeItalic, int16_t wghtAdjustment, int8_t italAdjustment)
-            : mBits(pack(fakeBold, fakeItalic, wghtAdjustment, italAdjustment)) {}
-
-    // TODO: want to support graded fake bolding
-    bool isFakeBold() { return (mBits & MASK_FAKE_BOLD) != 0; }
-    bool isFakeItalic() { return (mBits & MASK_FAKE_ITALIC) != 0; }
-    bool hasAdjustment() const { return hasWghtAdjustment() || hasItalAdjustment(); }
-    bool hasWghtAdjustment() const { return (mBits & MASK_HAS_WGHT_ADJUSTMENT) != 0; }
-    bool hasItalAdjustment() const { return (mBits & MASK_HAS_ITAL_ADJUSTMENT) != 0; }
-    int16_t wghtAdjustment() const {
-        if (hasWghtAdjustment()) {
-            return (mBits & MASK_WGHT_ADJUSTMENT) >> WGHT_ADJUSTMENT_SHIFT;
-        } else {
-            return -1;
-        }
-    }
-
-    int8_t italAdjustment() const {
-        if (hasItalAdjustment()) {
-            return (mBits & MASK_ITAL_ADJUSTMENT) != 0 ? 1 : 0;
-        } else {
-            return -1;
-        }
-    }
-
-    uint16_t bits() const { return mBits; }
-
-    inline bool operator==(const FontFakery& o) const { return mBits == o.mBits; }
-    inline bool operator!=(const FontFakery& o) const { return !(*this == o); }
-
-private:
-    static constexpr uint16_t MASK_FAKE_BOLD = 1u;
-    static constexpr uint16_t MASK_FAKE_ITALIC = 1u << 1;
-    static constexpr uint16_t MASK_HAS_WGHT_ADJUSTMENT = 1u << 2;
-    static constexpr uint16_t MASK_HAS_ITAL_ADJUSTMENT = 1u << 3;
-    static constexpr uint16_t MASK_ITAL_ADJUSTMENT = 1u << 4;
-    static constexpr uint16_t MASK_WGHT_ADJUSTMENT = 0b1111111111u << 5;
-    static constexpr uint16_t WGHT_ADJUSTMENT_SHIFT = 5;
-
-    uint16_t pack(bool isFakeBold, bool isFakeItalic, int16_t wghtAdjustment,
-                  int8_t italAdjustment) {
-        uint16_t bits = 0u;
-        bits |= isFakeBold ? MASK_FAKE_BOLD : 0;
-        bits |= isFakeItalic ? MASK_FAKE_ITALIC : 0;
-        if (wghtAdjustment != -1) {
-            bits |= MASK_HAS_WGHT_ADJUSTMENT;
-            bits |= (static_cast<uint16_t>(wghtAdjustment) << WGHT_ADJUSTMENT_SHIFT) &
-                    MASK_WGHT_ADJUSTMENT;
-        }
-        if (italAdjustment != -1) {
-            bits |= MASK_HAS_ITAL_ADJUSTMENT;
-            bits |= (italAdjustment == 1) ? MASK_ITAL_ADJUSTMENT : 0;
-        }
-        return bits;
-    }
-
-    const uint16_t mBits;
-};
 
 // Represents a single font file.
 class Font {
@@ -152,7 +88,7 @@ public:
     void writeTo(BufferWriter* writer) const;
 
     // Create font instance with axes override.
-    Font(const std::shared_ptr<Font>& parent, const std::vector<FontVariation>& axes);
+    Font(const std::shared_ptr<Font>& parent, const VariationSettings& axes);
 
     Font(Font&& o) noexcept;
     Font& operator=(Font&& o) noexcept;
@@ -168,7 +104,10 @@ public:
     // Returns an adjusted hb_font_t instance and MinikinFont instance.
     // Passing -1 each means do not override the current variation settings.
     HbFontUniquePtr getAdjustedFont(int wght, int ital) const;
-    const std::shared_ptr<MinikinFont>& getAdjustedTypeface(int wght, int ital) const;
+    std::shared_ptr<MinikinFont> getAdjustedTypeface(int wght, int ital) const;
+
+    HbFontUniquePtr getAdjustedFont(const VariationSettings& varSettings) const;
+    std::shared_ptr<MinikinFont> getAdjustedTypeface(const VariationSettings& varSettings) const;
 
     BufferReader typefaceMetadataReader() const { return mTypefaceMetadataReader; }
 
@@ -185,17 +124,31 @@ private:
     class ExternalRefs {
     public:
         ExternalRefs(std::shared_ptr<MinikinFont>&& typeface, HbFontUniquePtr&& baseFont)
-                : mTypeface(std::move(typeface)), mBaseFont(std::move(baseFont)) {}
+                : mTypeface(std::move(typeface)),
+                  mBaseFont(std::move(baseFont)),
+                  mVarTypefaceCache2(16),
+                  mVarFontCache2(16) {}
 
         std::shared_ptr<MinikinFont> mTypeface;
         HbFontUniquePtr mBaseFont;
 
+        // TODO: remove wght/ital only adjusted typeface pool once redesign typeface flag
+        //       is removed.
         const std::shared_ptr<MinikinFont>& getAdjustedTypeface(int wght, int ital) const;
         HbFontUniquePtr getAdjustedFont(int wght, int ital) const;
         mutable std::mutex mMutex;
         mutable std::map<uint16_t, std::shared_ptr<MinikinFont>> mVarTypefaceCache
                 GUARDED_BY(mMutex);
         mutable std::map<uint16_t, HbFontUniquePtr> mVarFontCache GUARDED_BY(mMutex);
+
+        std::shared_ptr<MinikinFont> getAdjustedTypeface(const VariationSettings& varSettings,
+                                                         const FVarTable& fvarTable) const;
+        HbFontUniquePtr getAdjustedFont(const VariationSettings& varSettings,
+                                        const FVarTable& fvarTable) const;
+        mutable android::LruCache<VariationSettings, std::shared_ptr<MinikinFont>>
+                mVarTypefaceCache2 GUARDED_BY(mMutex);
+        mutable android::LruCache<VariationSettings, HbFontUniquePtr*> mVarFontCache2
+                GUARDED_BY(mMutex);
     };
 
     // Use Builder instead.
@@ -246,13 +199,8 @@ struct FakedFont {
     }
     inline bool operator!=(const FakedFont& o) const { return !(*this == o); }
 
-    HbFontUniquePtr hbFont() const {
-        return font->getAdjustedFont(fakery.wghtAdjustment(), fakery.italAdjustment());
-    }
-
-    const std::shared_ptr<MinikinFont>& typeface() const {
-        return font->getAdjustedTypeface(fakery.wghtAdjustment(), fakery.italAdjustment());
-    }
+    HbFontUniquePtr hbFont() const;
+    std::shared_ptr<MinikinFont> typeface() const;
 
     // ownership is the enclosing FontCollection
     // FakedFont will be stored in the LayoutCache. It is not a good idea too keep font instance
