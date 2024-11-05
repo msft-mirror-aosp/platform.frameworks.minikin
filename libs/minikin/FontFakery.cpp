@@ -76,16 +76,18 @@ FontFakery merge(const FVarTable& fvar, const VariationSettings& baseVS,
 
         AxisTag tag;
         float value;
+        bool styleValueUsed = false;
         if (baseTag < targetTag) {
             if (styleTag < baseTag) {
                 // style < base < target: only process style.
                 tag = styleTag;
                 value = styleVars[styleIdx].value;
+                styleValueUsed = true;
                 styleIdx++;
             } else if (styleTag == baseTag) {
-                // style == base < target: process base and style. style is used.
+                // style == base < target: process base and style. base is used.
                 tag = styleTag;
-                value = styleVars[styleIdx].value;
+                value = baseVS[baseIdx].value;
                 baseIdx++;
                 styleIdx++;
             } else {
@@ -99,6 +101,7 @@ FontFakery merge(const FVarTable& fvar, const VariationSettings& baseVS,
                 // style < target < base: process style only.
                 tag = styleTag;
                 value = styleVars[styleIdx].value;
+                styleValueUsed = true;
                 styleIdx++;
             } else if (styleTag == targetTag) {
                 // style = target < base: process style and target. target is used.
@@ -117,6 +120,7 @@ FontFakery merge(const FVarTable& fvar, const VariationSettings& baseVS,
                 // style < base == target: only process style.
                 tag = styleTag;
                 value = styleVars[styleIdx].value;
+                styleValueUsed = true;
                 styleIdx++;
             } else if (styleTag == baseTag) {
                 //  base == target == style: process all. target is used.
@@ -140,13 +144,15 @@ FontFakery merge(const FVarTable& fvar, const VariationSettings& baseVS,
         }
         const FVarEntry& fvarEntry = it->second;
 
-        if (value != fvarEntry.defValue) {  // Skip the default value.
-            const float clamped = std::clamp(value, fvarEntry.minValue, fvarEntry.maxValue);
-            adjustedVars[adjustedHead++] = {tag, clamped};
-            if (tag == TAG_wght) {
-                // Fake bold is enabled when the max value is more than 200 of difference.
-                fakeBold = targetStyle.weight() >= 600 && (targetStyle.weight() - clamped) >= 200;
-            }
+        if (styleValueUsed && value == fvarEntry.defValue) {
+            // Skip the default value if it came from style.
+            continue;
+        }
+        const float clamped = std::clamp(value, fvarEntry.minValue, fvarEntry.maxValue);
+        adjustedVars[adjustedHead++] = {tag, clamped};
+        if (tag == TAG_wght) {
+            // Fake bold is enabled when the max value is more than 200 of difference.
+            fakeBold = targetStyle.weight() >= 600 && (targetStyle.weight() - clamped) >= 200;
         }
     }
 
