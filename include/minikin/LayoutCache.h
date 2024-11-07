@@ -50,6 +50,7 @@ public:
               mLetterSpacing(paint.letterSpacing),
               mWordSpacing(paint.wordSpacing),
               mLocaleListId(paint.localeListId),
+              mVerticalText(paint.verticalText),
               mFamilyVariant(paint.familyVariant),
               mStartHyphen(startHyphen),
               mEndHyphen(endHyphen),
@@ -63,8 +64,8 @@ public:
                mSize == o.mSize && mScaleX == o.mScaleX && mSkewX == o.mSkewX &&
                mLetterSpacing == o.mLetterSpacing && mWordSpacing == o.mWordSpacing &&
                mFontFlags == o.mFontFlags && mLocaleListId == o.mLocaleListId &&
-               mFamilyVariant == o.mFamilyVariant && mStartHyphen == o.mStartHyphen &&
-               mEndHyphen == o.mEndHyphen && mIsRtl == o.mIsRtl &&
+               mVerticalText == o.mVerticalText && mFamilyVariant == o.mFamilyVariant &&
+               mStartHyphen == o.mStartHyphen && mEndHyphen == o.mEndHyphen && mIsRtl == o.mIsRtl &&
                mFontFeatureSettings == o.mFontFeatureSettings && mChars == o.mChars &&
                mVariationSettings == o.mVariationSettings;
     }
@@ -88,6 +89,7 @@ private:
     float mLetterSpacing;
     float mWordSpacing;
     uint32_t mLocaleListId;
+    bool mVerticalText;
     FamilyVariant mFamilyVariant;
     StartHyphenEdit mStartHyphen;
     EndHyphenEdit mEndHyphen;
@@ -108,6 +110,7 @@ private:
                 .update(mScaleX)
                 .update(mSkewX)
                 .update(mLetterSpacing)
+                .update(mVerticalText)
                 .update(mWordSpacing)
                 .update(mFontFlags)
                 .update(mLocaleListId)
