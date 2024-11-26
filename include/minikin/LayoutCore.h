@@ -63,6 +63,7 @@ public:
     uint32_t glyphIdAt(int glyphPos) const { return mGlyphIds[glyphPos]; }
     const Point& pointAt(int glyphPos) const { return mPoints[glyphPos]; }
     uint16_t clusterAt(int glyphPos) const { return mClusters[glyphPos]; }
+    bool isVerticalText() const { return mVerticalText; }
 
     uint32_t getMemoryUsage() const {
         return sizeof(uint8_t) * mFontIndices.size() + sizeof(uint32_t) * mGlyphIds.size() +
@@ -85,6 +86,7 @@ private:
     float mAdvance;
     MinikinExtent mExtent;
     uint32_t mClusterCount;
+    bool mVerticalText;
 
     std::vector<FakedFont> mFonts;
 };
