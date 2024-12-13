@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-#define LOG_TAG "Minikin"
-
 #include "minikin/FontCollection.h"
 
 #include <log/log.h>
@@ -916,9 +914,7 @@ std::shared_ptr<FontCollection> FontCollection::createCollectionWithVariation(
     std::vector<std::shared_ptr<FontFamily>> families;
     for (size_t i = 0; i < getFamilyCount(); ++i) {
         const std::shared_ptr<FontFamily>& family = getFamilyAt(i);
-        std::shared_ptr<FontFamily> newFamily =
-                features::lazy_variation_instance() ? FontFamily::create(family, variations)
-                                                    : family->createFamilyWithVariation(variations);
+        std::shared_ptr<FontFamily> newFamily = FontFamily::create(family, variations);
         if (newFamily) {
             families.push_back(newFamily);
         } else {
