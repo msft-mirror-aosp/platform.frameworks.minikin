@@ -67,10 +67,11 @@ public:
 
     virtual void SetUp() override {
         mHyphenationPattern = readWholeFile("/system/usr/hyphen-data/hyph-en-us.hyb");
-        Hyphenator* hyphenator = Hyphenator::loadBinary(
-                mHyphenationPattern.data(), 2 /* min prefix */, 2 /* min suffix */, "en-US");
+        Hyphenator* hyphenator =
+                Hyphenator::loadBinary(mHyphenationPattern.data(), mHyphenationPattern.size(),
+                                       2 /* min prefix */, 2 /* min suffix */, "en-US");
         HyphenatorMap::add("en-US", hyphenator);
-        HyphenatorMap::add("pl", Hyphenator::loadBinary(nullptr, 0, 0, "pl"));
+        HyphenatorMap::add("pl", Hyphenator::loadBinary(nullptr, 0, 0, 0, "pl"));
     }
 
     virtual void TearDown() override { HyphenatorMap::clear(); }
@@ -1759,7 +1760,7 @@ TEST_F(GreedyLineBreakerTest, testBreakWithoutBounds_trail) {
         EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
                                                    << " vs " << std::endl
                                                    << toString(textBuf, actual);
-        EXPECT_EQ(MinikinRect(0, 10, 205, 0), actual.bounds[0]);
+        EXPECT_EQ(MinikinRect(0, -10, 205, 0), actual.bounds[0]);
     }
     {
         constexpr float LINE_WIDTH = 110;
@@ -1774,8 +1775,8 @@ TEST_F(GreedyLineBreakerTest, testBreakWithoutBounds_trail) {
         EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
                                                    << " vs " << std::endl
                                                    << toString(textBuf, actual);
-        EXPECT_EQ(MinikinRect(0, 10, 105, 0), actual.bounds[0]);
-        EXPECT_EQ(MinikinRect(0, 10, 105, 0), actual.bounds[1]);
+        EXPECT_EQ(MinikinRect(0, -10, 105, 0), actual.bounds[0]);
+        EXPECT_EQ(MinikinRect(0, -10, 105, 0), actual.bounds[1]);
     }
     {
         constexpr float LINE_WIDTH = 100;
@@ -1795,10 +1796,10 @@ TEST_F(GreedyLineBreakerTest, testBreakWithoutBounds_trail) {
         EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
                                                    << " vs " << std::endl
                                                    << toString(textBuf, actual);
-        EXPECT_EQ(MinikinRect(0, 10, 55, 0), actual.bounds[0]);
-        EXPECT_EQ(MinikinRect(0, 10, 55, 0), actual.bounds[1]);
-        EXPECT_EQ(MinikinRect(0, 10, 55, 0), actual.bounds[2]);
-        EXPECT_EQ(MinikinRect(0, 10, 55, 0), actual.bounds[3]);
+        EXPECT_EQ(MinikinRect(0, -10, 55, 0), actual.bounds[0]);
+        EXPECT_EQ(MinikinRect(0, -10, 55, 0), actual.bounds[1]);
+        EXPECT_EQ(MinikinRect(0, -10, 55, 0), actual.bounds[2]);
+        EXPECT_EQ(MinikinRect(0, -10, 55, 0), actual.bounds[3]);
     }
 }
 
@@ -1829,7 +1830,7 @@ TEST_F(GreedyLineBreakerTest, testBreakWithoutBounds_preceding) {
         EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
                                                    << " vs " << std::endl
                                                    << toString(textBuf, actual);
-        EXPECT_EQ(MinikinRect(-15, 10, 190, 0), actual.bounds[0]);
+        EXPECT_EQ(MinikinRect(-15, -10, 190, 0), actual.bounds[0]);
     }
     {
         constexpr float LINE_WIDTH = 110;
@@ -1844,8 +1845,8 @@ TEST_F(GreedyLineBreakerTest, testBreakWithoutBounds_preceding) {
         EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
                                                    << " vs " << std::endl
                                                    << toString(textBuf, actual);
-        EXPECT_EQ(MinikinRect(-15, 10, 90, 0), actual.bounds[0]);
-        EXPECT_EQ(MinikinRect(-15, 10, 90, 0), actual.bounds[1]);
+        EXPECT_EQ(MinikinRect(-15, -10, 90, 0), actual.bounds[0]);
+        EXPECT_EQ(MinikinRect(-15, -10, 90, 0), actual.bounds[1]);
     }
     {
         constexpr float LINE_WIDTH = 100;
@@ -1865,10 +1866,10 @@ TEST_F(GreedyLineBreakerTest, testBreakWithoutBounds_preceding) {
         EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
                                                    << " vs " << std::endl
                                                    << toString(textBuf, actual);
-        EXPECT_EQ(MinikinRect(-15, 10, 40, 0), actual.bounds[0]);
-        EXPECT_EQ(MinikinRect(-15, 10, 40, 0), actual.bounds[1]);
-        EXPECT_EQ(MinikinRect(-15, 10, 40, 0), actual.bounds[2]);
-        EXPECT_EQ(MinikinRect(-15, 10, 40, 0), actual.bounds[3]);
+        EXPECT_EQ(MinikinRect(-15, -10, 40, 0), actual.bounds[0]);
+        EXPECT_EQ(MinikinRect(-15, -10, 40, 0), actual.bounds[1]);
+        EXPECT_EQ(MinikinRect(-15, -10, 40, 0), actual.bounds[2]);
+        EXPECT_EQ(MinikinRect(-15, -10, 40, 0), actual.bounds[3]);
     }
 }
 
@@ -1919,9 +1920,7 @@ TEST_F(GreedyLineBreakerTest, testBreakWithHyphenation_NoHyphenationSpan) {
     }
 }
 
-TEST_F_WITH_FLAGS(GreedyLineBreakerTest, testPhraseBreakNone,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(com::android::text::flags,
-                                                      word_style_auto))) {
+TEST_F(GreedyLineBreakerTest, testPhraseBreakNone) {
     // For short hand of writing expectation for lines.
     auto line = [](std::string t, float w) -> LineBreakExpectation {
         return {t, w, StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, ASCENT, DESCENT};
@@ -2033,9 +2032,7 @@ TEST_F_WITH_FLAGS(GreedyLineBreakerTest, testPhraseBreakNone,
     }
 }
 
-TEST_F_WITH_FLAGS(GreedyLineBreakerTest, testPhraseBreakPhrase,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(com::android::text::flags,
-                                                      word_style_auto))) {
+TEST_F(GreedyLineBreakerTest, testPhraseBreakPhrase) {
     // For short hand of writing expectation for lines.
     auto line = [](std::string t, float w) -> LineBreakExpectation {
         return {t, w, StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, ASCENT, DESCENT};
@@ -2149,9 +2146,7 @@ TEST_F_WITH_FLAGS(GreedyLineBreakerTest, testPhraseBreakPhrase,
     }
 }
 
-TEST_F_WITH_FLAGS(GreedyLineBreakerTest, testPhraseBreakAuto,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(com::android::text::flags,
-                                                      word_style_auto))) {
+TEST_F(GreedyLineBreakerTest, testPhraseBreakAuto) {
     // For short hand of writing expectation for lines.
     auto line = [](std::string t, float w) -> LineBreakExpectation {
         return {t, w, StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, ASCENT, DESCENT};
@@ -2264,9 +2259,7 @@ TEST_F_WITH_FLAGS(GreedyLineBreakerTest, testPhraseBreakAuto,
     }
 }
 
-TEST_F_WITH_FLAGS(GreedyLineBreakerTest, testPhraseBreak_Korean,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(com::android::text::flags,
-                                                      word_style_auto))) {
+TEST_F(GreedyLineBreakerTest, testPhraseBreak_Korean) {
     // For short hand of writing expectation for lines.
     auto line = [](std::string t, float w) -> LineBreakExpectation {
         return {t, w, StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, ASCENT, DESCENT};
@@ -2326,9 +2319,7 @@ TEST_F_WITH_FLAGS(GreedyLineBreakerTest, testPhraseBreak_Korean,
     }
 }
 
-TEST_F_WITH_FLAGS(GreedyLineBreakerTest, testBreakWithLetterSpacing,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(com::android::text::flags,
-                                                      letter_spacing_justification))) {
+TEST_F(GreedyLineBreakerTest, testBreakWithLetterSpacing) {
     const std::vector<uint16_t> textBuf = utf8ToUtf16("This is an example text.");
 
     constexpr StartHyphenEdit NO_START_HYPHEN = StartHyphenEdit::NO_EDIT;

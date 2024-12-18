@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-#define LOG_TAG "Minikin"
-
 #include "FreeTypeMinikinFontForTest.h"
 
 #include <fcntl.h>
@@ -101,9 +99,9 @@ void FreeTypeMinikinFontForTest::GetBounds(MinikinRect* bounds, uint32_t glyphId
     FT_Outline_Get_CBox(&mFtFace->glyph->outline, &bbox);
 
     bounds->mLeft = FTPosToFloat(bbox.xMin);
-    bounds->mTop = FTPosToFloat(bbox.yMax);
+    bounds->mTop = -FTPosToFloat(bbox.yMax);
     bounds->mRight = FTPosToFloat(bbox.xMax);
-    bounds->mBottom = FTPosToFloat(bbox.yMin);
+    bounds->mBottom = -FTPosToFloat(bbox.yMin);
 }
 
 void FreeTypeMinikinFontForTest::GetFontExtent(MinikinExtent* extent, const MinikinPaint& paint,

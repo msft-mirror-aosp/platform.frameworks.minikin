@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,20 +14,27 @@
  * limitations under the License.
  */
 
-#ifndef MINIKIN_FONT_UTILS_H
-#define MINIKIN_FONT_UTILS_H
+#ifndef MINIKIN_ICU_BRIDGE_H
+#define MINIKIN_ICU_BRIDGE_H
 
 #include <cstdint>
-#include <unordered_set>
-
-#include "minikin/FVarTable.h"
 
 namespace minikin {
+namespace rust {
 
-bool analyzeStyle(const uint8_t* os2_data, size_t os2_size, int* weight, bool* italic);
-bool analyzeAxes(const uint8_t* fvar_data, size_t fvar_size, std::unordered_set<uint32_t>* axes);
-bool readFVarTable(const uint8_t* fvar_data, size_t fvar_size, FVarTable* out);
+/**
+ * Delegate ICU4C uscript_getScript API for Rust.
+ * TODO: Replace with ICU4X once it becomes available in Android.
+ */
+uint8_t getScript(uint32_t codePoint);
+
+/**
+ * Delegate ICU4C u_getIntPropertyValue with UCHAR_JOINING_TYPE API for Rust.
+ * TODO: Replace with ICU4X once it becomes available in Android.
+ */
+uint8_t getJoiningType(uint32_t codePoint);
+}  // namespace rust
 
 }  // namespace minikin
 
-#endif  // MINIKIN_ANALYZE_STYLE_H
+#endif  // MINIKIN_LETTER_SPACING_UTILS_H

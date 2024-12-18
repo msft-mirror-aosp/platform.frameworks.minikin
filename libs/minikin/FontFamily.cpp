@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-#define LOG_TAG "Minikin"
-
 #include "minikin/FontFamily.h"
 
 #include <log/log.h>
@@ -104,7 +102,7 @@ FontFamily::FontFamily(const std::shared_ptr<FontFamily>& parent,
           mIsColorEmoji(parent->mIsColorEmoji),
           mIsCustomFallback(parent->mIsCustomFallback),
           mIsDefaultFallback(parent->mIsDefaultFallback),
-          mVarFamilyType(parent->mVarFamilyType) {
+          mVarFamilyType(VariationFamilyType::None) {
     // Filter only the axis supported font.
     std::vector<std::shared_ptr<Font>> overriddenFonts;
     for (uint16_t i = 0; i < mFontsCount; ++i) {
@@ -442,7 +440,7 @@ std::shared_ptr<FontFamily> FontFamily::createFamilyWithVariation(
     }
 
     return create(mLocaleListId, mVariant, std::move(fonts), mIsCustomFallback, mIsDefaultFallback,
-                  mVarFamilyType);
+                  VariationFamilyType::None);
 }
 
 }  // namespace minikin

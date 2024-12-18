@@ -14,16 +14,16 @@
  * limitations under the License.
  */
 
-#include "minikin/Layout.h"
-
+#include <com_android_text_flags.h>
+#include <flag_macros.h>
 #include <gtest/gtest.h>
-
-#include "minikin/FontCollection.h"
-#include "minikin/LayoutPieces.h"
-#include "minikin/Measurement.h"
 
 #include "FontTestUtils.h"
 #include "UnicodeUtils.h"
+#include "minikin/FontCollection.h"
+#include "minikin/Layout.h"
+#include "minikin/LayoutPieces.h"
+#include "minikin/Measurement.h"
 
 namespace minikin {
 
@@ -74,7 +74,7 @@ TEST_F(LayoutTest, doLayoutTest) {
 
         getBounds(text, Bidi::LTR, paint, &rect);
         EXPECT_EQ(0.0f, rect.mLeft);
-        EXPECT_EQ(10.0f, rect.mTop);
+        EXPECT_EQ(-10.0f, rect.mTop);
         EXPECT_EQ(70.0f, rect.mRight);
         EXPECT_EQ(0.0f, rect.mBottom);
         expectedValues.resize(text.size());
@@ -93,7 +93,7 @@ TEST_F(LayoutTest, doLayoutTest) {
 
         getBounds(text, Bidi::LTR, paint, &rect);
         EXPECT_EQ(0.0f, rect.mLeft);
-        EXPECT_EQ(10.0f, rect.mTop);
+        EXPECT_EQ(-10.0f, rect.mTop);
         EXPECT_EQ(90.0f, rect.mRight);
         EXPECT_EQ(0.0f, rect.mBottom);
         expectedValues.resize(text.size());
@@ -112,7 +112,7 @@ TEST_F(LayoutTest, doLayoutTest) {
 
         getBounds(text, Bidi::LTR, paint, &rect);
         EXPECT_EQ(0.0f, rect.mLeft);
-        EXPECT_EQ(10.0f, rect.mTop);
+        EXPECT_EQ(-10.0f, rect.mTop);
         EXPECT_EQ(160.0f, rect.mRight);
         EXPECT_EQ(0.0f, rect.mBottom);
         expectedValues.resize(text.size());
@@ -131,7 +131,7 @@ TEST_F(LayoutTest, doLayoutTest) {
 
         getBounds(text, Bidi::LTR, paint, &rect);
         EXPECT_EQ(0.0f, rect.mLeft);
-        EXPECT_EQ(10.0f, rect.mTop);
+        EXPECT_EQ(-10.0f, rect.mTop);
         EXPECT_EQ(110.0f, rect.mRight);
         EXPECT_EQ(0.0f, rect.mBottom);
         expectedValues.resize(text.size());
@@ -162,7 +162,7 @@ TEST_F(LayoutTest, doLayoutTest_wordSpacing) {
 
         getBounds(text, Bidi::LTR, paint, &rect);
         EXPECT_EQ(0.0f, rect.mLeft);
-        EXPECT_EQ(10.0f, rect.mTop);
+        EXPECT_EQ(-10.0f, rect.mTop);
         EXPECT_EQ(70.0f, rect.mRight);
         EXPECT_EQ(0.0f, rect.mBottom);
         expectedValues.resize(text.size());
@@ -181,7 +181,7 @@ TEST_F(LayoutTest, doLayoutTest_wordSpacing) {
 
         getBounds(text, Bidi::LTR, paint, &rect);
         EXPECT_EQ(0.0f, rect.mLeft);
-        EXPECT_EQ(10.0f, rect.mTop);
+        EXPECT_EQ(-10.0f, rect.mTop);
         EXPECT_EQ(95.0f, rect.mRight);
         EXPECT_EQ(0.0f, rect.mBottom);
         expectedValues.resize(text.size());
@@ -201,7 +201,7 @@ TEST_F(LayoutTest, doLayoutTest_wordSpacing) {
 
         getBounds(text, Bidi::LTR, paint, &rect);
         EXPECT_EQ(0.0f, rect.mLeft);
-        EXPECT_EQ(10.0f, rect.mTop);
+        EXPECT_EQ(-10.0f, rect.mTop);
         EXPECT_EQ(170.0f, rect.mRight);
         EXPECT_EQ(0.0f, rect.mBottom);
         expectedValues.resize(text.size());
@@ -222,7 +222,7 @@ TEST_F(LayoutTest, doLayoutTest_wordSpacing) {
 
         getBounds(text, Bidi::LTR, paint, &rect);
         EXPECT_EQ(0.0f, rect.mLeft);
-        EXPECT_EQ(10.0f, rect.mTop);
+        EXPECT_EQ(-10.0f, rect.mTop);
         EXPECT_EQ(120.0f, rect.mRight);
         EXPECT_EQ(0.0f, rect.mBottom);
         expectedValues.resize(text.size());
@@ -256,7 +256,7 @@ TEST_F(LayoutTest, doLayoutTest_negativeWordSpacing) {
 
         getBounds(text, Bidi::LTR, paint, &rect);
         EXPECT_EQ(0.0f, rect.mLeft);
-        EXPECT_EQ(10.0f, rect.mTop);
+        EXPECT_EQ(-10.0f, rect.mTop);
         EXPECT_EQ(70.0f, rect.mRight);
         EXPECT_EQ(0.0f, rect.mBottom);
         expectedValues.resize(text.size());
@@ -275,7 +275,7 @@ TEST_F(LayoutTest, doLayoutTest_negativeWordSpacing) {
 
         getBounds(text, Bidi::LTR, paint, &rect);
         EXPECT_EQ(0.0f, rect.mLeft);
-        EXPECT_EQ(10.0f, rect.mTop);
+        EXPECT_EQ(-10.0f, rect.mTop);
         EXPECT_EQ(85.0f, rect.mRight);
         EXPECT_EQ(0.0f, rect.mBottom);
         expectedValues.resize(text.size());
@@ -295,7 +295,7 @@ TEST_F(LayoutTest, doLayoutTest_negativeWordSpacing) {
 
         getBounds(text, Bidi::LTR, paint, &rect);
         EXPECT_EQ(0.0f, rect.mLeft);
-        EXPECT_EQ(10.0f, rect.mTop);
+        EXPECT_EQ(-10.0f, rect.mTop);
         EXPECT_EQ(140.0f, rect.mRight);
         EXPECT_EQ(0.0f, rect.mBottom);
         expectedValues.resize(text.size());
@@ -316,7 +316,7 @@ TEST_F(LayoutTest, doLayoutTest_negativeWordSpacing) {
 
         getBounds(text, Bidi::LTR, paint, &rect);
         EXPECT_EQ(0.0f, rect.mLeft);
-        EXPECT_EQ(10.0f, rect.mTop);
+        EXPECT_EQ(-10.0f, rect.mTop);
         EXPECT_EQ(100.0f, rect.mRight);
         EXPECT_EQ(0.0f, rect.mBottom);
         expectedValues.resize(text.size());
@@ -485,6 +485,61 @@ TEST_F(LayoutTest, measuredTextTest) {
         EXPECT_EQ(1.0f, advances[0]);
         EXPECT_EQ(5.0f, advances[1]);
         EXPECT_EQ(10.0f, advances[2]);
+    }
+}
+
+TEST_F_WITH_FLAGS(LayoutTest, testFontRun,
+                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(com::android::text::flags,
+                                                      typeface_redesign))) {
+    auto latinFamily = buildFontFamily("Ascii.ttf");
+    auto jaFamily = buildFontFamily("Hiragana.ttf");
+    const std::vector<std::shared_ptr<FontFamily>> families = {latinFamily, jaFamily};
+    auto fc = FontCollection::create(families);
+    {
+        MinikinPaint paint(fc);
+        paint.size = 10;
+        auto text = utf8ToUtf16("abc");  // (0, 3): Latin letters
+        Range range(0, text.size());
+        Layout layout(text, range, Bidi::LTR, paint, StartHyphenEdit::NO_EDIT,
+                      EndHyphenEdit::NO_EDIT, RunFlag::NONE);
+        EXPECT_EQ(1ul, layout.getFontRunCount());
+        EXPECT_EQ(0ul, layout.getFontRunStart(0));
+        EXPECT_EQ(3ul, layout.getFontRunEnd(0));
+        EXPECT_EQ("Ascii.ttf", getBasename(layout.getFontRunFont(0).typeface()->GetFontPath()));
+    }
+    {
+        MinikinPaint paint(fc);
+        paint.size = 10;
+        auto text = utf8ToUtf16("abcあいう");  // (0, 3): Latin letters, (3, 6): Japanese letters.
+        Range range(0, text.size());
+        Layout layout(text, range, Bidi::LTR, paint, StartHyphenEdit::NO_EDIT,
+                      EndHyphenEdit::NO_EDIT, RunFlag::NONE);
+        EXPECT_EQ(2ul, layout.getFontRunCount());
+        EXPECT_EQ(0ul, layout.getFontRunStart(0));
+        EXPECT_EQ(3ul, layout.getFontRunEnd(0));
+        EXPECT_EQ("Ascii.ttf", getBasename(layout.getFontRunFont(0).typeface()->GetFontPath()));
+        EXPECT_EQ(3ul, layout.getFontRunStart(1));
+        EXPECT_EQ(6ul, layout.getFontRunEnd(1));
+        EXPECT_EQ("Hiragana.ttf", getBasename(layout.getFontRunFont(1).typeface()->GetFontPath()));
+    }
+    {
+        MinikinPaint paint(fc);
+        paint.size = 10;
+        // (0, 3): Latin letters, (3, 6): Japanese letters, (6, 9): Latin letters.
+        auto text = utf8ToUtf16("abcあいうdef");
+        Range range(0, text.size());
+        Layout layout(text, range, Bidi::LTR, paint, StartHyphenEdit::NO_EDIT,
+                      EndHyphenEdit::NO_EDIT, RunFlag::NONE);
+        EXPECT_EQ(3ul, layout.getFontRunCount());
+        EXPECT_EQ(0ul, layout.getFontRunStart(0));
+        EXPECT_EQ(3ul, layout.getFontRunEnd(0));
+        EXPECT_EQ("Ascii.ttf", getBasename(layout.getFontRunFont(0).typeface()->GetFontPath()));
+        EXPECT_EQ(3ul, layout.getFontRunStart(1));
+        EXPECT_EQ(6ul, layout.getFontRunEnd(1));
+        EXPECT_EQ("Hiragana.ttf", getBasename(layout.getFontRunFont(1).typeface()->GetFontPath()));
+        EXPECT_EQ(6ul, layout.getFontRunStart(2));
+        EXPECT_EQ(9ul, layout.getFontRunEnd(2));
+        EXPECT_EQ("Ascii.ttf", getBasename(layout.getFontRunFont(2).typeface()->GetFontPath()));
     }
 }
 

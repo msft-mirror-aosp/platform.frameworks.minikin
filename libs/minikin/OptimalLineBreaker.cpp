@@ -99,6 +99,8 @@ struct OptimizeContext {
 
     bool retryWithPhraseWordBreak = false;
 
+    float maxCharWidth = 0.0f;
+
     // Append desperate break point to the candidates.
     inline void pushDesperate(uint32_t offset, ParaWidth sumOfCharWidths, float score,
                               uint32_t spaceCount, bool isRtl, float letterSpacing) {
@@ -189,42 +191,29 @@ std::vector<DesperateBreak> populateDesperatePoints(const U16StringPiece& textBu
                                                     const Range& range, const Run& run) {
     std::vector<DesperateBreak> out;
 
-    if (!features::phrase_strict_fallback() ||
-        run.lineBreakWordStyle() == LineBreakWordStyle::None) {
-        ParaWidth width = measured.widths[range.getStart()];
-        for (uint32_t i = range.getStart() + 1; i < range.getEnd(); ++i) {
-            const float w = measured.widths[i];
-            if (w == 0) {
-                continue;  // w == 0 means here is not a grapheme bounds. Don't break here.
-            }
-            out.emplace_back(i, width, SCORE_DESPERATE);
-            width += w;
-        }
-    } else {
-        WordBreaker wb;
-        wb.setText(textBuf.data(), textBuf.length());
-        ssize_t next = wb.followingWithLocale(getEffectiveLocale(run.getLocaleListId()),
-                                              run.lineBreakStyle(), LineBreakWordStyle::None,
-                                              range.getStart());
+    WordBreaker wb;
+    wb.setText(textBuf.data(), textBuf.length());
+    ssize_t next =
+            wb.followingWithLocale(getEffectiveLocale(run.getLocaleListId()), run.lineBreakStyle(),
+                                   LineBreakWordStyle::None, range.getStart());
 
-        const bool calculateFallback = range.contains(next);
-        ParaWidth width = measured.widths[range.getStart()];
-        for (uint32_t i = range.getStart() + 1; i < range.getEnd(); ++i) {
-            const float w = measured.widths[i];
-            if (w == 0) {
-                continue;  // w == 0 means here is not a grapheme bounds. Don't break here.
-            }
-            if (calculateFallback && i == (uint32_t)next) {
-                out.emplace_back(i, width, SCORE_FALLBACK);
-                next = wb.next();
-                if (!range.contains(next)) {
-                    break;
-                }
-            } else {
-                out.emplace_back(i, width, SCORE_DESPERATE);
-            }
-            width += w;
+    const bool calculateFallback = range.contains(next);
+    ParaWidth width = measured.widths[range.getStart()];
+    for (uint32_t i = range.getStart() + 1; i < range.getEnd(); ++i) {
+        const float w = measured.widths[i];
+        if (w == 0) {
+            continue;  // w == 0 means here is not a grapheme bounds. Don't break here.
         }
+        if (calculateFallback && i == (uint32_t)next) {
+            out.emplace_back(i, width, SCORE_FALLBACK);
+            next = wb.next();
+            if (!range.contains(next)) {
+                break;
+            }
+        } else {
+            out.emplace_back(i, width, SCORE_DESPERATE);
+        }
+        width += w;
     }
 
     return out;
@@ -265,14 +254,10 @@ OptimizeContext populateCandidates(const U16StringPiece& textBuf, const Measured
     CharProcessor proc(textBuf);
 
     float initialLetterSpacing;
-    if (features::letter_spacing_justification()) {
-        if (measured.runs.empty()) {
-            initialLetterSpacing = 0;
-        } else {
-            initialLetterSpacing = measured.runs[0]->getLetterSpacingInPx();
-        }
-    } else {
+    if (measured.runs.empty()) {
         initialLetterSpacing = 0;
+    } else {
+        initialLetterSpacing = measured.runs[0]->getLetterSpacingInPx();
     }
     OptimizeContext result(initialLetterSpacing);
 
@@ -282,8 +267,7 @@ OptimizeContext populateCandidates(const U16StringPiece& textBuf, const Measured
     for (const auto& run : measured.runs) {
         const bool isRtl = run->isRtl();
         const Range& range = run->getRange();
-        const float letterSpacing =
-                features::letter_spacing_justification() ? run->getLetterSpacingInPx() : 0;
+        const float letterSpacing = run->getLetterSpacingInPx();
 
         // Compute penalty parameters.
         float hyphenPenalty = 0.0f;
@@ -337,6 +321,7 @@ OptimizeContext populateCandidates(const U16StringPiece& textBuf, const Measured
     }
     result.spaceWidth = proc.spaceWidth;
     result.retryWithPhraseWordBreak = proc.retryWithPhraseWordBreak;
+    result.maxCharWidth = proc.maxCharWidth;
     return result;
 }
 
@@ -422,6 +407,7 @@ LineBreakResult LineBreakOptimizer::computeBreaks(const OptimizeContext& context
     breaksData.reserve(nCand);
     breaksData.push_back({0.0, 0, 0});  // The first candidate is always at the first line.
 
+    const float deltaMax = context.maxCharWidth * 2;
     // "i" iterates through candidates for the end of the line.
     for (uint32_t i = 1; i < nCand; i++) {
         const bool atEnd = i == nCand - 1;
@@ -450,19 +436,22 @@ LineBreakResult LineBreakOptimizer::computeBreaks(const OptimizeContext& context
             if (jScore + bestHope >= best) continue;
             float delta = candidates[j].preBreak - leftEdge;
 
-            if (useBoundsForWidth) {
+            // The bounds calculation is for preventing horizontal clipping.
+            // So, if the delta is negative, i.e. overshoot is happening with advance width, we can
+            // skip the bounds calculation. Also we skip the bounds calculation if the delta is
+            // larger than twice of max character widdth. This is a heuristic that the twice of max
+            // character width should be good enough space for keeping overshoot.
+            if (useBoundsForWidth && 0 <= delta && delta < deltaMax) {
                 // FIXME: Support bounds based line break for hyphenated break point.
                 if (candidates[i].hyphenType == HyphenationType::DONT_BREAK &&
                     candidates[j].hyphenType == HyphenationType::DONT_BREAK) {
-                    if (delta >= 0) {
-                        Range range = Range(candidates[j].offset, candidates[i].offset);
-                        Range actualRange = trimTrailingLineEndSpaces(textBuf, range);
-                        if (!actualRange.isEmpty() && measured.hasOverhang(range)) {
-                            float boundsDelta =
-                                    width - measured.getBounds(textBuf, actualRange).width();
-                            if (boundsDelta < 0) {
-                                delta = boundsDelta;
-                            }
+                    Range range = Range(candidates[j].offset, candidates[i].offset);
+                    Range actualRange = trimTrailingLineEndSpaces(textBuf, range);
+                    if (!actualRange.isEmpty() && measured.hasOverhang(range)) {
+                        float boundsDelta =
+                                width - measured.getBounds(textBuf, actualRange).width();
+                        if (boundsDelta < 0) {
+                            delta = boundsDelta;
                         }
                     }
                 }
@@ -527,10 +516,6 @@ LineBreakResult breakLineOptimal(const U16StringPiece& textBuf, const MeasuredTe
     LineBreakOptimizer optimizer;
     LineBreakResult res = optimizer.computeBreaks(context, textBuf, measured, lineWidth, strategy,
                                                   justified, useBoundsForWidth);
-
-    if (!features::word_style_auto()) {
-        return res;
-    }
 
     // The line breaker says that retry with phrase based word break because of the auto option and
     // given locales.
